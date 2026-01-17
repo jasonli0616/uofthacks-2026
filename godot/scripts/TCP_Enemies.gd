@@ -1,5 +1,7 @@
 extends Node
 
+signal enemies_received(enemies)
+
 var socket = WebSocketPeer.new()
 var request_sent = false # Flag to ensure we only send once
 
@@ -29,6 +31,17 @@ func _process(_delta):
 			print("SUCCESS! Received from Python: ")
 			print(message)
 			
+			var parsed = JSON.parse_string(message)
+			if parsed == null:
+				print("ERROR: Failed to parse JSON")
+				continue
+
+			if not parsed.has("enemies"):
+				print("ERROR: JSON has no 'enemies' field")
+				continue
+			
+			emit_signal("enemies_received", parsed["enemies"])
+			
 			# Optional: Disconnect after we get our answer
 			socket.close()
 			print("Test complete. Disconnecting.")
@@ -47,3 +60,4 @@ func _send_request():
 	}
 	# Convert dictionary to JSON string
 	socket.send_text(JSON.stringify(payload))
+	

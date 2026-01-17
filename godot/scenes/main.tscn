@@ -1,6 +1,67 @@
-[gd_scene load_steps=2 format=3 uid="uid://ddv1nn5xpebf2"]
+[gd_scene load_steps=10 format=3 uid="uid://bxydsb3ub7npf"]
 
-[ext_resource type="Script" path="res://scripts/TCP_Enemies.gd" id="1_tcp"]
+[ext_resource type="Script" uid="uid://c0qjpr6bx3fd" path="res://scripts/main.gd" id="1_0wfyh"]
+[ext_resource type="Script" uid="uid://bcl5qsl6e16h8" path="res://scripts/TCP_Enemies.gd" id="1_tcp"]
+[ext_resource type="Script" uid="uid://c0vbf0k06tcw5" path="res://scripts/CameraInterface.gd" id="3_tbgi4"]
+[ext_resource type="Script" uid="uid://bafncbb5gl5ta" path="res://scripts/NoteDetector.gd" id="4_tefeu"]
+[ext_resource type="Texture2D" uid="uid://cmteo2fxyaver" path="res://sprites/player.jpg" id="5_o6xl0"]
+[ext_resource type="Script" uid="uid://cblgk3kord5mu" path="res://scripts/player.gd" id="5_tefeu"]
+[ext_resource type="Script" uid="uid://ccm733fvjmsl6" path="res://scripts/strings.gd" id="7_tipki"]
+[ext_resource type="Script" uid="uid://da4fojw6p0po1" path="res://scripts/TestControls.gd" id="8_85g3d"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_tipki"]
 
 [node name="Main" type="Node2D"]
+script = ExtResource("1_0wfyh")
+
+[node name="EnemySpawner" type="Node" parent="." groups=["Enemy"]]
 script = ExtResource("1_tcp")
+
+[node name="CameraInterface" type="Node" parent="."]
+script = ExtResource("3_tbgi4")
+
+[node name="NoteDetector" type="Node" parent="."]
+script = ExtResource("4_tefeu")
+
+[node name="Player" type="Area2D" parent="." groups=["Player"]]
+script = ExtResource("5_tefeu")
+
+[node name="Sprite2D" type="Sprite2D" parent="Player"]
+position = Vector2(5, 1)
+scale = Vector2(0.07, 0.07)
+texture = ExtResource("5_o6xl0")
+
+[node name="GPUParticles2D" type="GPUParticles2D" parent="Player"]
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="Player"]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
+scale = Vector2(3, 3)
+shape = SubResource("CapsuleShape2D_tipki")
+
+[node name="GuitarStrings" type="Node2D" parent="."]
+script = ExtResource("7_tipki")
+
+[node name="Line2D" type="Line2D" parent="GuitarStrings"]
+
+[node name="Line2D2" type="Line2D" parent="GuitarStrings"]
+
+[node name="Line2D3" type="Line2D" parent="GuitarStrings"]
+
+[node name="Line2D4" type="Line2D" parent="GuitarStrings"]
+
+[node name="Line2D5" type="Line2D" parent="GuitarStrings"]
+
+[node name="Line2D6" type="Line2D" parent="GuitarStrings"]
+
+[node name="TestControls" type="Node" parent="."]
+script = ExtResource("8_85g3d")
+
+[connection signal="chord_detected" from="CameraInterface" to="NoteDetector" method="_on_camera_interface_chord_detected"]
+[connection signal="finger_position_detected" from="CameraInterface" to="NoteDetector" method="_on_camera_interface_finger_position_detected"]
+[connection signal="note_played" from="CameraInterface" to="NoteDetector" method="_on_camera_interface_note_played"]
+[connection signal="chord_played" from="NoteDetector" to="Player" method="_on_note_detector_chord_played"]
+[connection signal="enemy_destroyed" from="NoteDetector" to="." method="_on_note_detector_enemy_destroyed"]
+[connection signal="enemy_destroyed" from="NoteDetector" to="Player" method="_on_note_detector_enemy_destroyed"]
+[connection signal="note_played" from="NoteDetector" to="." method="_on_note_detector_note_played"]
+[connection signal="note_played" from="NoteDetector" to="Player" method="_on_note_detector_note_played"]

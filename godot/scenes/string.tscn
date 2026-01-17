@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://bahy80v6j6x8h"]
+
+[node name="String" type="Node2D"]
+
+[node name="Line2D" type="Line2D" parent="."]
+points = PackedVector2Array(0, 0, 1200, 0)
+width = 4.0

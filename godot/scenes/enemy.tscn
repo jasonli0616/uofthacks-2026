@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3 uid="uid://cekohs1ci1pcx"]
+
+[ext_resource type="Texture2D" uid="uid://dpyi2vb0v3o6h" path="res://sprites/enemy.jpg" id="1_7p1mj"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_md0e3"]
+
+[node name="Area2D" type="Area2D"]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+scale = Vector2(0.02, 0.02)
+texture = ExtResource("1_7p1mj")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CapsuleShape2D_md0e3")

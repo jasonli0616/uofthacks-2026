@@ -79,8 +79,10 @@ async def handler(websocket):
             print("Sending response...")
             await websocket.send(response_text)
 
-    except websockets.exceptions.ConnectionClosed:
-        print("Client disconnected")
+    except Exception as e:
+        print("SERVER ERROR:", e)
+        # except websockets.exceptions.ConnectionClosed:
+        # print("Client disconnected")
 
 # --- 5. Main Entry Point ---
 async def main():
