@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
-from parameters import DEFAULT_INTERVAL, CHORDS
+from .parameters import DEFAULT_INTERVAL, CHORDS
 
 class GestureGUI:
     def __init__(self, start_callback, stop_callback):
