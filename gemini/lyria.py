@@ -171,22 +171,22 @@ async def main():
 
         
         # Set the initial prompts
-        main_instrument = "Steel Drum"
-        main_genre = "Shoegaze"
+        main_instrument = "Acoustic Guitar"
+        main_genre = "60s Psychedelic Rock"
         mood = "Live Performance"
         await session.set_weighted_prompts(
-            prompts=[types.WeightedPrompt(text=main_instrument, weight=1.0),
-                     types.WeightedPrompt(text=main_genre, weight=1.0),
-                     types.WeightedPrompt(text=mood, weight=1.0)]
+            prompts=[types.WeightedPrompt(text=main_instrument, weight=0.5),
+                     types.WeightedPrompt(text=main_genre, weight=0.8),
+                     types.WeightedPrompt(text=mood, weight=0.5)]
         )
 
         # Set initial BPM and Scale
         config.bpm = 85
-        config.scale = types.Scale.A_FLAT_MAJOR_F_MINOR # Example initial scale
+        config.scale = types.Scale.G_MAJOR_E_MINOR # Example initial scale
         print(f"Setting initial BPM to {config.bpm} and scale to {config.scale.name}")
         await session.set_music_generation_config(config=config)
 
-        print(f"Let's get the party started!")
+       
         await session.play()
 
         send_task = asyncio.create_task(send())
