@@ -22,11 +22,13 @@ def main(poll_interval=0.25):
 
             # Chord prediction
             chord_prediction = chord_tracking.get_prediction()
-            # print(chord_prediction)
+            if chord_prediction != None:
+                print(chord_prediction)
 
             # Pitch prediction
             pitch_prediction = audio.get_pitch()  # returns note string or None
-            # print(pitch_prediction)
+            if pitch_prediction != None:
+                print(pitch_prediction)
 
             # Send through UDP sockets
             payload = json.dumps({
