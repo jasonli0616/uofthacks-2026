@@ -39,7 +39,8 @@ def audio_callback(indata, frames, time, status):
     global latest_pitch
     if status:
         # keep minimal logging
-        print(status)
+        # print(status)
+        pass
 
     # Convert input buffer to a 1-D float32 numpy array
     samples = indata[:, 0].astype(np.float32) if indata.ndim > 1 else indata.astype(np.float32)
