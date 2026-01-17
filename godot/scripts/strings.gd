@@ -1,32 +1,31 @@
-# GuitarStrings.gd
 extends Node2D
 
-var string_colors = [
-	Color(1, 0.2, 0.2, 0.7),  # Low E - Red
-	Color(1, 0.8, 0.2, 0.7),  # A - Orange
-	Color(0.2, 1, 0.2, 0.7),  # D - Green
-	Color(0.2, 0.6, 1, 0.7),  # G - Blue
-	Color(0.8, 0.2, 1, 0.7),  # B - Purple
-	Color(1, 1, 0.2, 0.7)     # High E - Yellow
-]
-
 func _ready():
-	# Create visual representation of strings
-	for i in range(6):
-		_create_string_visual(i)
+	draw_strings()
 
-func _create_string_visual(string_index: int):
-	var line = Line2D.new()
-	line.width = 2
-	line.default_color = string_colors[string_index]
-	
-	# Calculate positions
+func draw_strings():
 	var viewport_size = get_viewport_rect().size
-	var y_pos = (string_index + 1) * viewport_size.y / 7
 	
-	line.points = [
-		Vector2(50, y_pos),
-		Vector2(viewport_size.x - 50, y_pos)
+	# String colors
+	var colors = [
+		Color(1, 0.2, 0.2),  # Red - E
+		Color(1, 0.8, 0.2),  # Orange - A
+		Color(0.2, 1, 0.2),  # Green - D
+		Color(0.2, 0.6, 1),  # Blue - G
+		Color(0.8, 0.2, 1),  # Purple - B
+		Color(1, 1, 0.2),    # Yellow - e
 	]
 	
-	add_child(line)
+	# Create 6 horizontal lines (strings)
+	for i in range(6):
+		var line = Line2D.new()
+		line.width = 3
+		line.default_color = colors[i]
+		
+		var y_pos = (i + 1) * viewport_size.y / 7
+		line.points = [
+			Vector2(50, y_pos),
+			Vector2(viewport_size.x - 50, y_pos)
+		]
+		
+		add_child(line)

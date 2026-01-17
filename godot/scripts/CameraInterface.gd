@@ -20,6 +20,6 @@ func simulate_finger_position(string: String, fret: int):
 
 func _process(delta):
 	# When computer vision detects something
-	if Input.is_action_just_pressed("test_chord"):  # For testing
+	if Input.is_action_just_pressed("test_chord_c"):  # For testing
 		emit_signal("chord_detected", "C Major")
 		emit_signal("note_played", "C", "E", 3)

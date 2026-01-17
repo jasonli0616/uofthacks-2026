@@ -1,14 +1,14 @@
-[gd_scene load_steps=3 format=3 uid="uid://cekohs1ci1pcx"]
+[gd_scene load_steps=3 format=3 uid="uid://belbrv6l3fkk2"]
 
 [ext_resource type="Texture2D" uid="uid://dpyi2vb0v3o6h" path="res://sprites/enemy.jpg" id="1_7p1mj"]
-
-[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_md0e3"]
+[ext_resource type="Script" uid="uid://cntiptcolw2ej" path="res://scripts/enemy.gd" id="1_md0e3"]
 
 [node name="Area2D" type="Area2D"]
+script = ExtResource("1_md0e3")
 
-[node name="Sprite2D" type="Sprite2D" parent="."]
-scale = Vector2(0.02, 0.02)
+[node name="FretLabel" type="Sprite2D" parent="."]
 texture = ExtResource("1_7p1mj")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-shape = SubResource("CapsuleShape2D_md0e3")
+[node name="Label" type="Label" parent="."]
+offset_right = 40.0
+offset_bottom = 23.0

@@ -1,22 +1,27 @@
-# TestInputHandler.gd
 extends Node
-class_name CameraInterface
 
-@export var camera_interface: CameraInterface
+@onready var note_detector = $"../NoteDetector"
 
 func _input(event):
-	# Simulate playing individual notes
-	if event.is_action_pressed("test_note_1"):
-		camera_interface.simulate_finger_position("E", 3)
-		camera_interface.emit_signal("note_played", "G", "E", 3)
-	
-	if event.is_action_pressed("test_note_2"):
-		camera_interface.simulate_finger_position("A", 2)
-		camera_interface.emit_signal("note_played", "B", "A", 2)
-	
-	# Simulate chords
-	if event.is_action_pressed("test_chord_c"):
-		camera_interface.simulate_chord_detection("C Major")
-	
-	if event.is_action_pressed("test_chord_g"):
-		camera_interface.simulate_chord_detection("G Major")
+	# Press keys 1-6 to play strings
+	if event is InputEventKey and event.pressed:
+		var string_played = ""
+		
+		match event.keycode:
+			KEY_1:
+				string_played = "E"
+			KEY_2:
+				string_played = "A"
+			KEY_3:
+				string_played = "D"
+			KEY_4:
+				string_played = "G"
+			KEY_5:
+				string_played = "B"
+			KEY_6:
+				string_played = "e"
+			_:
+				return  # Ignore other keys
+		
+		print("Playing string: ", string_played)
+		note_detector.check_played_note(string_played)

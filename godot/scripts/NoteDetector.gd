@@ -1,54 +1,40 @@
-# NoteDetector.gd
 extends Node
 
-signal note_played(note: String, fret: int, string: String)
-signal chord_played(chord_name: String)
-signal enemy_destroyed(enemy_data: Dictionary)
+signal correct_note_played
+signal incorrect_note_played
 
-var current_enemies = []
+var current_enemies = []  # Store enemy data
 
 func register_enemy(enemy_data: Dictionary):
 	current_enemies.append(enemy_data)
-	
-func enemy_hit_success(enemy_data: Dictionary):
-	# Emit signal when enemy is destroyed
-	emit_signal("enemy_destroyed", enemy_data)
+	print("Registered enemy: ", enemy_data)
 
-func check_played_note(played_note: String, played_fret: int, played_string: String):
-	# Find matching enemy
-	for enemy_data in current_enemies:
-		if (enemy_data.note == played_note and 
-			enemy_data.fret == played_fret and 
-			enemy_data.string.to_upper() == played_string.to_upper()):
-			
-			# Found a match!
-			emit_signal("note_played", played_note, played_fret, played_string)
-			
-			# Remove from list
-			current_enemies.erase(enemy_data)
-			
-			# Find and destroy the enemy node
-			_destroy_matching_enemy(enemy_data)
-			return true
+func check_played_note(played_string: String):
+	print("Checking note on string: ", played_string)
 	
-	return false
+	# Find if any enemy is on this string
+	var string_enemies = []
+	for enemy in current_enemies:
+		if enemy.string.to_upper() == played_string.to_upper():
+			string_enemies.append(enemy)
+	
+	if string_enemies.size() > 0:
+		# Found enemy on this string - destroy the first one
+		var enemy_to_destroy = string_enemies[0]
+		current_enemies.erase(enemy_to_destroy)
+		destroy_enemy_node(enemy_to_destroy)
+		correct_note_played.emit()
+		return true
+	else:
+		# No enemy on this string
+		incorrect_note_played.emit()
+		print("Miss! No enemy on string ", played_string)
+		return false
 
-func _destroy_matching_enemy(enemy_data: Dictionary):
-	# Find enemy node with matching data
+func destroy_enemy_node(enemy_data: Dictionary):
+	# Find the enemy node in the scene and destroy it
 	var enemies = get_tree().get_nodes_in_group("enemies")
 	for enemy in enemies:
-		if enemy.note_data == enemy_data:
+		if enemy.enemy_data == enemy_data:
 			enemy.destroy()
 			break
-
-
-func _on_camera_interface_chord_detected(chord_name: String) -> void:
-	pass # Replace with function body.
-
-
-func _on_camera_interface_finger_position_detected(string: String, fret: int) -> void:
-	pass # Replace with function body.
-
-
-func _on_camera_interface_note_played(note: String, string: String, fret: int) -> void:
-	pass # Replace with function body.
