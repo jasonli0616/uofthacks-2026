@@ -17,7 +17,7 @@ pitch_detector = aubio.pitch(
 )
 
 pitch_detector.set_unit("Hz")
-pitch_detector.set_tolerance(0.8)
+pitch_detector.set_tolerance(0.3)
 pitch_detector.set_silence(-40)
 
 # New: store latest pitch/note and manage input stream
