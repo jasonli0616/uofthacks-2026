@@ -2,14 +2,14 @@ import pygame
 import random
 import os 
 
-# Color mapping for the 6 guitar strings (pastel versions)
+# Color mapping for the 6 guitar strings (metallic rainbow)
 STRING_COLORS = {
-    "E": (255, 150, 150),     # Pastel red
-    "A": (255, 200, 150),     # Pastel orange
-    "D": (255, 255, 150),     # Pastel yellow
-    "G": (150, 200, 150),     # Pastel green
-    "B": (150, 150, 255),     # Pastel blue
-    "e": (200, 150, 255),     # Pastel indigo
+    "E": (255, 100, 100),     # Metallic red
+    "A": (255, 180, 80),      # Metallic orange
+    "D": (255, 255, 100),     # Metallic yellow
+    "G": (100, 220, 100),     # Metallic green
+    "B": (100, 150, 255),     # Metallic blue
+    "e": (150, 100, 220),     # Metallic indigo
 }
 
 START_POSITIONS = {
