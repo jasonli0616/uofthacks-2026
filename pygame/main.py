@@ -2,6 +2,10 @@ import sys
 import pygame
 from pygame.locals import QUIT, KEYDOWN, K_ESCAPE
 from strings import StringSprite, START_POSITIONS
+from start_screen import show_start_screen
+from enemy_sprites import EnemySprite
+import random
+
 
 # Path to your background image (edit this to your filename)
 BACKGROUND_PATH = "background.png"
@@ -24,7 +28,7 @@ def load_background(path):
         print(f"Warning: could not load background '{path}': {e}", file=sys.stderr)
         return None
 
-def main():
+def main(config):
     pygame.init()
     clock = pygame.time.Clock()
 
@@ -32,11 +36,21 @@ def main():
     pygame.display.set_caption("<Git />ar")
     bg_image = load_background(BACKGROUND_PATH)
     
+    # Game config is available here if needed
+    # config.bpm, config.scale, config.main_instrument, config.main_genre, config.mood
+    
     # Create sprite group for guitar strings
     strings_group = pygame.sprite.Group()
     for position, note in START_POSITIONS.items():
         string_sprite = StringSprite(note, position)
         strings_group.add(string_sprite)
+    
+    # Create sprite group for enemies
+    enemies_group = pygame.sprite.Group()
+    
+    # Enemy spawn timer
+    enemy_spawn_timer = 0
+    enemy_spawn_interval = 120  # Spawn every 2 seconds at 60 FPS
    
     running = True
     while running:
@@ -51,9 +65,33 @@ def main():
         else:
             screen.fill(FALLBACK_BG_COLOR)
         
+        # Spawn enemies periodically
+        enemy_spawn_timer += 1
+        if enemy_spawn_timer >= enemy_spawn_interval:
+            enemy_spawn_timer = 0
+            # Spawn an enemy on a random string with random note and fret
+            strings = ["E", "A", "D", "G", "B", "e"]
+            notes = ["A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"]
+            enemy_data = {
+                'string': random.choice(strings),
+                'note': random.choice(notes),
+                'fret': random.randint(0, 12)
+            }
+            enemy = EnemySprite(enemy_data, speed=3)
+            enemies_group.add(enemy)
+        
         # Update and draw strings
         strings_group.update()
         strings_group.draw(screen)
+        
+        # Update and draw enemies
+        enemies_group.update()
+        enemies_group.draw(screen)
+        
+        # Remove enemies that are off screen
+        for enemy in enemies_group:
+            if enemy.rect.right < 0:
+                enemy.kill()
 
         pygame.display.flip()
         clock.tick(TARGET_FPS)
@@ -65,4 +103,9 @@ def main():
         pass
 
 if __name__ == "__main__":
-    main()
+    # Show start screen first
+    config = show_start_screen()
+    
+    # If user didn't quit on start screen, run the main game
+    if config:
+        main(config)
