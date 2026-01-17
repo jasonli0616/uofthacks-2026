@@ -4,6 +4,10 @@
 ### Godot ###
 # Godot 4+ specific ignores
 .godot/
+/android/
+venv/
+.env
+
 
 # Godot-specific ignores
 .import/
@@ -224,3 +228,4 @@ poetry.toml
 pyrightconfig.json
 
 # End of https://www.toptal.com/developers/gitignore/api/python,macos,godot
+
