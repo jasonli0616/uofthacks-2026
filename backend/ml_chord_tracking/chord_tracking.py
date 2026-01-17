@@ -11,6 +11,7 @@ from .parameters import FONT, FONT_SCALE_TOP1, FONT_SCALE_OTHER, THICKNESS_TOP1,
 from .parameters import TEXT_X, TEXT_Y, TEXT_VERTICAL_SPACING, DEFAULT_INTERVAL, CHORDS
 from .camera import run_camera_loop
 from .hand_tracker import compute_features, FINGERS
+from .gui import GestureGUI
 
 # Whether or not to show any windows (cv2 windows or the Tk GUI)
 SHOW_WINDOWS = True
@@ -93,7 +94,6 @@ def _background_worker(show_windows):
             # If caller asked for GUI, we still create a GestureGUI here,
             # but note that Tkinter usually needs to run on the main thread.
             # For background usage prefer show_windows=False.
-            from gui import GestureGUI
             gui = GestureGUI(start_callback=None, stop_callback=None)
             gui.root.protocol("WM_DELETE_WINDOW", lambda: (_stop_event.set(), gui.root.destroy()))
 
