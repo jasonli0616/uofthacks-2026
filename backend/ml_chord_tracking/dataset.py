@@ -1,8 +1,9 @@
 import os
+from importlib.resources import files
 import numpy as np
-from parameters import K, DIST_THRESHOLD
+from .parameters import K, DIST_THRESHOLD
 
-LOG_FILE = "dataset.txt"
+LOG_FILE = str(files(__package__).joinpath("dataset.txt"))
 
 # Comment header explaining dataset format
 COMMENT_HEADER = (

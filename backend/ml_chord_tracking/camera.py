@@ -1,10 +1,10 @@
 import time
 import cv2
 import numpy as np
-from hand_tracker import compute_features, FINGERS
-from parameters import CONFIDENCE_THRESHOLD, TOP_K_DISPLAY, SKELETON_COLOR
-from parameters import FONT, FONT_SCALE_OTHER, THICKNESS_OTHER, TEXT_X, TEXT_Y, TEXT_VERTICAL_SPACING
-from parameters import DIST_THRESHOLD
+from .hand_tracker import compute_features, FINGERS
+from .parameters import CONFIDENCE_THRESHOLD, TOP_K_DISPLAY, SKELETON_COLOR
+from .parameters import FONT, FONT_SCALE_OTHER, THICKNESS_OTHER, TEXT_X, TEXT_Y, TEXT_VERTICAL_SPACING
+from .parameters import DIST_THRESHOLD
 
 def run_camera_loop(submit_frame, get_latest_result, dataset, gui, on_predictions=None, show_windows=False, stop_event=None):
     """
