@@ -1,14 +1,17 @@
 import cv2
 import time
 import threading
-from hand_tracker import compute_features, FINGERS
-from dataset import Dataset
-from gui import GestureGUI
 import mediapipe as mp
 import numpy as np
+from dataset import Dataset
 from parameters import CONFIDENCE_THRESHOLD, TOP_K_DISPLAY, SKELETON_COLOR
 from parameters import FONT, FONT_SCALE_TOP1, FONT_SCALE_OTHER, THICKNESS_TOP1, THICKNESS_OTHER
 from parameters import TEXT_X, TEXT_Y, TEXT_VERTICAL_SPACING, DEFAULT_INTERVAL, CHORDS
+from camera import run_camera_loop
+from hand_tracker import compute_features, FINGERS
+
+# Whether or not to show any windows (cv2 windows or the Tk GUI)
+SHOW_WINDOWS = False
 
 # ================== MediaPipe setup ==================
 BaseOptions = mp.tasks.BaseOptions
@@ -28,108 +31,83 @@ options = GestureRecognizerOptions(
     result_callback=result_callback,
 )
 
+# helper to expose latest_result to camera module
+def get_latest_result():
+    return latest_result
+
 # ================== Dataset ==================
 dataset = Dataset()
 
-# ================== GUI Callbacks ==================
-def start_tracking(gui: GestureGUI):
-    gui.tracking = True
-    try:
-        gui.interval = float(gui.interval_entry.get())
-    except:
-        gui.interval = DEFAULT_INTERVAL
-    gui.status.set(f"Tracking every {gui.interval:.2f}s")
+# Minimal headless GUI-like object for logging state when no GUI windows are shown
+class HeadlessGUI:
+    def __init__(self):
+        self.tracking = False
+        self.interval = DEFAULT_INTERVAL
+        self.selected_chord = CHORDS[0]
 
-def stop_tracking(gui: GestureGUI):
-    gui.tracking = False
-    gui.status.set("Stopped tracking")
-
-# ================== Webcam thread ==================
-def webcam_thread(gui: GestureGUI):
-    global latest_result
-    cap = cv2.VideoCapture(0)
-    cv2.namedWindow("Webcam", cv2.WINDOW_NORMAL)
-    last_logged = 0
-
-    with GestureRecognizer.create_from_options(options) as recognizer:
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break
-
-            h, w, _ = frame.shape
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            mp_image = mp.Image(mp.ImageFormat.SRGB, rgb)
-            recognizer.recognize_async(mp_image, int(time.time() * 1000))
-
-            current_features = None
-            top_preds_unique = []
-
-            if latest_result and latest_result.hand_landmarks:
-                hand = latest_result.hand_landmarks[0]
-                raw_pts = [(int(lm.x * w), int(lm.y * h)) for lm in hand]
-                current_features = compute_features(raw_pts)
-
-                # Draw skeleton
-                for finger in FINGERS.values():
-                    mcp, pip, dip, tip = finger
-                    for a, b in [(mcp, pip), (pip, dip), (dip, tip)]:
-                        cv2.line(frame, raw_pts[a], raw_pts[b], SKELETON_COLOR, 2)
-                    for i in finger:
-                        cv2.circle(frame, raw_pts[i], 5, SKELETON_COLOR, -1)
-
-                # Compute top-K predictions
-                if len(dataset.X) >= TOP_K_DISPLAY:
-                    X_np = np.array(dataset.X)
-                    dists = np.linalg.norm(X_np - current_features, axis=1)
-                    sorted_idx = np.argsort(dists)[:TOP_K_DISPLAY]
-
-                    top_preds = []
-                    for i in sorted_idx:
-                        conf = max(0.0, 1.0 - dists[i] / 0.6)  # DIST_THRESHOLD hardcoded or import
-                        if conf > CONFIDENCE_THRESHOLD:
-                            top_preds.append((dataset.y[i], conf))
-
-                    # Remove duplicates, keep first occurrence
-                    seen = set()
-                    for label, conf in top_preds:
-                        if label not in seen:
-                            top_preds_unique.append((label, conf))
-                            seen.add(label)
-
-                # Automatic logging
-                current_time = time.time()
-                if gui.tracking and current_features is not None:
-                    if current_time - last_logged >= gui.interval:
-                        label = gui.selected_chord  # use selected chord from buttons
-                        if label:
-                            dataset.log(label, current_features)
-                            last_logged = current_time
-
-            # Draw top predictions (small, black on white, vertical list)
-            for rank, (label, conf) in enumerate(top_preds_unique[:TOP_K_DISPLAY]):
-                text = f"{label} - {conf*100:.0f}%"
-                y = TEXT_Y + rank * TEXT_VERTICAL_SPACING
-
-                # White border
-                cv2.putText(frame, text, (TEXT_X, y), FONT, FONT_SCALE_OTHER, (255, 255, 255),
-                            THICKNESS_OTHER + 2, lineType=cv2.LINE_AA)
-                # Black text
-                cv2.putText(frame, text, (TEXT_X, y), FONT, FONT_SCALE_OTHER, (0, 0, 0),
-                            THICKNESS_OTHER, lineType=cv2.LINE_AA)
-
-            cv2.imshow("Webcam", frame)
-
-            if cv2.waitKey(1) & 0xFF == ord("q"):
-                break
-            if cv2.getWindowProperty("Webcam", cv2.WND_PROP_VISIBLE) < 1:
-                break
-
-    cap.release()
-    cv2.destroyAllWindows()
+# on_predictions will be called by camera module each frame with list[(label, conf)]
+def on_predictions(preds):
+    if not preds:
+        print("Predictions: (none)")
+    else:
+        s = ", ".join(f"{label} - {conf*100:.0f}%" for label, conf in preds)
+        print(f"Predictions: {s}")
 
 # ================== Main ==================
 if __name__ == "__main__":
-    gui = GestureGUI(start_callback=start_tracking, stop_callback=stop_tracking)
-    threading.Thread(target=webcam_thread, args=(gui,), daemon=True).start()
-    gui.run()
+    # Provide a submit_frame function that creates mp.Image and calls recognizer
+    with GestureRecognizer.create_from_options(options) as recognizer:
+
+        def submit_frame(rgb):
+            # rgb is a numpy array in RGB order
+            mp_image = mp.Image(mp.ImageFormat.SRGB, rgb)
+            recognizer.recognize_async(mp_image, int(time.time() * 1000))
+
+        # choose GUI object (headless by default)
+        if SHOW_WINDOWS:
+            # Create the full GUI only when windows are enabled (keeps original behavior)
+            from gui import GestureGUI
+            gui = GestureGUI(start_callback=None, stop_callback=None)  # original callbacks not needed here
+
+            # run the camera loop in a background thread so Tkinter mainloop can run in the main thread
+            stop_event = threading.Event()
+            # ensure closing the Tk window signals the camera thread to stop and then destroys the window
+            gui.root.protocol("WM_DELETE_WINDOW", lambda: (stop_event.set(), gui.root.destroy()))
+
+            camera_thread = threading.Thread(
+                target=run_camera_loop,
+                kwargs=dict(
+                    submit_frame=submit_frame,
+                    get_latest_result=get_latest_result,
+                    dataset=dataset,
+                    gui=gui,
+                    on_predictions=on_predictions,
+                    show_windows=SHOW_WINDOWS,
+                    stop_event=stop_event,
+                ),
+                daemon=True,
+            )
+            camera_thread.start()
+
+            try:
+                # run the Tk event loop on the main thread (this will show the GUI)
+                gui.run()
+            finally:
+                # ensure camera thread is instructed to stop and give it a moment to exit
+                stop_event.set()
+                camera_thread.join(timeout=2)
+        else:
+            gui = HeadlessGUI()
+
+            # Run camera loop (this will capture frames, call submit_frame, compute features and predictions,
+            # optionally show windows, and call on_predictions to allow main to print)
+            try:
+                run_camera_loop(submit_frame=submit_frame,
+                                get_latest_result=get_latest_result,
+                                dataset=dataset,
+                                gui=gui,
+                                on_predictions=on_predictions,
+                                show_windows=SHOW_WINDOWS,
+                                stop_event=None)
+            except KeyboardInterrupt:
+                pass
