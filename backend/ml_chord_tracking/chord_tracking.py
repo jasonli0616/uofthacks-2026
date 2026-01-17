@@ -49,6 +49,10 @@ class HeadlessGUI:
         self.interval = DEFAULT_INTERVAL
         self.selected_chord = CHORDS[0]
 
+    def get_active_label(self) -> str:
+        """Return the label used for logging (same contract as GestureGUI.get_active_label)."""
+        return self.selected_chord
+
 # on_predictions will be called by camera module each frame with list[(label, conf)]
 # (REPLACED) on_predictions now updates a global latest_preds so external importers can read the current prediction.
 latest_preds = None  # stores the most recent list[(label, conf)]
@@ -160,61 +164,3 @@ def stop_background(timeout=2.0):
     _camera_thread = None
     _stop_event = None
 
-# ================== Main ==================
-if __name__ == "__main__":
-    # Provide a submit_frame function that creates mp.Image and calls recognizer
-    with GestureRecognizer.create_from_options(options) as recognizer:
-
-        def submit_frame(rgb):
-            # rgb is a numpy array in RGB order
-            mp_image = mp.Image(mp.ImageFormat.SRGB, rgb)
-            recognizer.recognize_async(mp_image, int(time.time() * 1000))
-
-        # choose GUI object (headless by default)
-        if SHOW_WINDOWS:
-            # Create the full GUI only when windows are enabled (keeps original behavior)
-            from gui import GestureGUI
-            gui = GestureGUI(start_callback=None, stop_callback=None)  # original callbacks not needed here
-
-            # run the camera loop in a background thread so Tkinter mainloop can run in the main thread
-            stop_event = threading.Event()
-            # ensure closing the Tk window signals the camera thread to stop and then destroys the window
-            gui.root.protocol("WM_DELETE_WINDOW", lambda: (stop_event.set(), gui.root.destroy()))
-
-            camera_thread = threading.Thread(
-                target=run_camera_loop,
-                kwargs=dict(
-                    submit_frame=submit_frame,
-                    get_latest_result=get_latest_result,
-                    dataset=dataset,
-                    gui=gui,
-                    on_predictions=on_predictions,
-                    show_windows=SHOW_WINDOWS,
-                    stop_event=stop_event,
-                ),
-                daemon=True,
-            )
-            camera_thread.start()
-
-            try:
-                # run the Tk event loop on the main thread (this will show the GUI)
-                gui.run()
-            finally:
-                # ensure camera thread is instructed to stop and give it a moment to exit
-                stop_event.set()
-                camera_thread.join(timeout=2)
-        else:
-            gui = HeadlessGUI()
-
-            # Run camera loop (this will capture frames, call submit_frame, compute features and predictions,
-            # optionally show windows, and call on_predictions to allow main to print)
-            try:
-                run_camera_loop(submit_frame=submit_frame,
-                                get_latest_result=get_latest_result,
-                                dataset=dataset,
-                                gui=gui,
-                                on_predictions=on_predictions,
-                                show_windows=SHOW_WINDOWS,
-                                stop_event=None)
-            except KeyboardInterrupt:
-                pass

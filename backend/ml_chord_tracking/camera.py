@@ -81,7 +81,12 @@ def run_camera_loop(submit_frame, get_latest_result, dataset, gui, on_prediction
                 current_time = time.time()
                 if getattr(gui, "tracking", False) and current_features is not None:
                     if current_time - last_logged >= getattr(gui, "interval", 0.2):
-                        label = getattr(gui, "selected_chord", None)
+                        # Use active label (custom entry if present) when available
+                        if hasattr(gui, "get_active_label") and callable(gui.get_active_label):
+                            label = gui.get_active_label()
+                        else:
+                            label = getattr(gui, "selected_chord", None)
+
                         if label:
                             dataset.log(label, current_features)
                             last_logged = current_time

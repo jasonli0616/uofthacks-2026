@@ -29,5 +29,4 @@ TEXT_Y = 30
 TEXT_VERTICAL_SPACING = 25
 
 
-CHORDS = ["A", "B", "C", "D", "E", "F", "G",
-          "Am", "Bm", "Cm", "Dm", "Em", "Fm", "Gm"]
+CHORDS = ["A", "B", "C", "D", "E", "F", "G"]
