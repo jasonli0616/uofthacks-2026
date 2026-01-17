@@ -1,13 +1,16 @@
 import sys
 import pygame
 from pygame.locals import QUIT, KEYDOWN, K_ESCAPE
+from strings import StringSprite, START_POSITIONS
 
 # Path to your background image (edit this to your filename)
 BACKGROUND_PATH = "background.png"
 
 # Fallback window size / color if image can't be loaded
-FALLBACK_SIZE = (800, 600)
-FALLBACK_BG_COLOR = (30, 30, 40)
+SCREEN_WIDTH = 1280
+SCREEN_HEIGHT = 720
+window_size = (SCREEN_WIDTH, SCREEN_HEIGHT)
+FALLBACK_BG_COLOR = (82, 82, 82)
 TARGET_FPS = 60
 
 def load_background(path):
@@ -25,15 +28,16 @@ def main():
     pygame.init()
     clock = pygame.time.Clock()
 
-    bg_image = load_background(BACKGROUND_PATH)
-    if bg_image:
-        window_size = bg_image.get_size()
-    else:
-        window_size = FALLBACK_SIZE
-
     screen = pygame.display.set_mode(window_size)
-    pygame.display.set_caption("Background Viewer")
-
+    pygame.display.set_caption("<Git />ar")
+    bg_image = load_background(BACKGROUND_PATH)
+    
+    # Create sprite group for guitar strings
+    strings_group = pygame.sprite.Group()
+    for position, note in START_POSITIONS.items():
+        string_sprite = StringSprite(note, position)
+        strings_group.add(string_sprite)
+   
     running = True
     while running:
         for event in pygame.event.get():
@@ -46,6 +50,10 @@ def main():
             screen.blit(bg_image, (0, 0))
         else:
             screen.fill(FALLBACK_BG_COLOR)
+        
+        # Update and draw strings
+        strings_group.update()
+        strings_group.draw(screen)
 
         pygame.display.flip()
         clock.tick(TARGET_FPS)
