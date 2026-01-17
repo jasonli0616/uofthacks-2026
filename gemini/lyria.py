@@ -1,41 +1,3 @@
-# -*- coding: utf-8 -*-
-# Copyright 2025 Google LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-"""
-## Setup
-
-To install the dependencies for this script, run:
-
-```
-pip install pyaudio websockets
-```
-
-Before running this script, ensure the `GOOGLE_API_KEY` environment
-variable is set to the api-key you obtained from Google AI Studio.
-
-## Run
-
-To run the script:
-
-```
-python LyriaRealTime_EAP.py
-```
-
-The script takes a prompt from the command line and streams the audio back over
-websockets.
-"""
 import asyncio
 import pyaudio
 import os
@@ -207,13 +169,19 @@ async def main():
                     prompts=[types.WeightedPrompt(text=prompt_str, weight=1.0)]
                 )
 
-        print("Starting with some piano")
+        
+        # Set the initial prompts
+        main_instrument = "Steel Drum"
+        main_genre = "Shoegaze"
+        mood = "Live Performance"
         await session.set_weighted_prompts(
-            prompts=[types.WeightedPrompt(text="Piano", weight=1.0)]
+            prompts=[types.WeightedPrompt(text=main_instrument, weight=1.0),
+                     types.WeightedPrompt(text=main_genre, weight=1.0),
+                     types.WeightedPrompt(text=mood, weight=1.0)]
         )
 
         # Set initial BPM and Scale
-        config.bpm = 120
+        config.bpm = 85
         config.scale = types.Scale.A_FLAT_MAJOR_F_MINOR # Example initial scale
         print(f"Setting initial BPM to {config.bpm} and scale to {config.scale.name}")
         await session.set_music_generation_config(config=config)
