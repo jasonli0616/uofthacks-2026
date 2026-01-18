@@ -2,7 +2,7 @@ import sys
 import os
 import random
 import pygame
-from pygame.locals import QUIT, KEYDOWN, K_ESCAPE
+from pygame.locals import QUIT, KEYDOWN, K_ESCAPE, K_1
 
 from start_screen import StartScreen, window_size, FALLBACK_BG_COLOR, SCREEN_WIDTH as DESIGN_WIDTH, SCREEN_HEIGHT as DESIGN_HEIGHT
 from strings import StringSprite, START_POSITIONS
@@ -55,6 +55,16 @@ def main(config=None):
 	offset_y = int((screen_h - DESIGN_HEIGHT * scale) / 2)
 	offset = (offset_x, offset_y)
 
+	# Barrier in design coordinates (pick a design-x where player can fire past)
+	barrier_design_x = 300
+	# shift right ~70 screen pixels
+	barrier_screen_x = offset_x + int(barrier_design_x * scale) + 70
+
+	# design gap used by strings (must match strings.StringSprite's design_gap)
+	design_gap = 225
+	# left playable x (when an enemy goes past this, it leaves the string)
+	play_area_x = offset_x + int(design_gap * scale)
+
 	bg_image = load_background(BACKGROUND_PATH)
 
 	# Show start screen and get config from the UI; pass scale+offset so UI is scaled
@@ -96,10 +106,39 @@ def main(config=None):
 	# Create sprite group for enemies
 	enemies_group = pygame.sprite.Group()
 
+
 	# Create player sprite
 	player = PlayerSprite(scale=scale, offset=offset)
 	player_group = pygame.sprite.Group()
 	player_group.add(player)
+
+	# Beam group for particle beams
+	beam_group = pygame.sprite.Group()
+
+	# Health / hearts
+	max_health = 5
+	current_health = max_health
+	heart_size = 20  # 20x20 px hearts per request
+	heart_spacing = 4
+
+	# Prebuild a simple heart Surface (20x20)
+	def make_heart_surface(size):
+		s = pygame.Surface((size, size), pygame.SRCALPHA)
+		# draw approximate heart: two circles and a downward triangle
+		red = (220, 20, 60)
+		r = size // 4
+		# left circle
+		pygame.draw.circle(s, red, (r, r), r)
+		# right circle
+		pygame.draw.circle(s, red, (size - r, r), r)
+		# bottom triangle
+		points = [(0 + r // 2, r), (size - r // 2, r), (size // 2, size)]
+		pygame.draw.polygon(s, red, points)
+		# small white highlight
+		pygame.draw.circle(s, (255,255,255,120), (r, r), max(1, r//2))
+		return s
+
+	heart_surf = make_heart_surface(heart_size)
 
 	# Enemy spawn timer
 	enemy_spawn_timer = 0
@@ -112,6 +151,20 @@ def main(config=None):
 				running = False
 			elif event.type == KEYDOWN and event.key == K_ESCAPE:
 				running = False
+			# When player presses "1", shoot at closest enemy that already passed the barrier
+			elif event.type == KEYDOWN and event.key == K_1:
+				# candidates: enemies that are past the barrier (in screen coords)
+				candidates = [e for e in enemies_group if e.rect.centerx <= barrier_screen_x]
+				if candidates:
+					# pick the one closest to the player (smallest centerx)
+					target = min(candidates, key=lambda e: e.rect.centerx)
+					# try to determine the string name from the enemy (fall back to "E")
+					string_name = getattr(target, "string", None) or getattr(target, "note", None) \
+						or (getattr(target, "data", {}) and getattr(target, "data").get("string") if isinstance(getattr(target, "data", {}), dict) else None) \
+						or "E"
+					beam = player.shoot_particle_beam(string_name, target_enemy=target)
+					if beam:
+						beam_group.add(beam)
 
 		if bg_image:
 			# Scale background to fill letterboxed area (we keep aspect via scale, then blit centered)
@@ -120,6 +173,18 @@ def main(config=None):
 			screen.blit(bg_scaled, (offset_x, offset_y))
 		else:
 			screen.fill(FALLBACK_BG_COLOR)
+
+		# Draw barrier (vertical red line)
+		pygame.draw.line(screen, (255, 0, 0), (barrier_screen_x, offset_y), (barrier_screen_x, offset_y + int(DESIGN_HEIGHT * scale)), 2)
+
+		# Draw hearts (top-right inside the letterboxed design area)
+		right_x = offset_x + int(DESIGN_WIDTH * scale) - int(10 * scale)  # small right margin
+		top_y = offset_y + int(10 * scale)
+		for i in range(current_health):
+			# compute position so hearts are drawn leftwards from the right margin
+			x = right_x - (i + 1) * (heart_size + heart_spacing)
+			y = top_y
+			screen.blit(heart_surf, (int(x), int(y)))
 
 		# Spawn enemies based on pre-generated notes (pass actual screen width so spawn is at visible edge)
 		enemy_spawn_timer += 1
@@ -138,7 +203,7 @@ def main(config=None):
 		enemies_group.update()
 		enemies_group.draw(screen)
 		# Draw trailing fret labels
-		for enemy in enemies_group:
+		for enemy in list(enemies_group):
 			if hasattr(enemy, "draw_label"):
 				enemy.draw_label(screen)
 
@@ -146,14 +211,27 @@ def main(config=None):
 		player_group.update()
 		player_group.draw(screen)
 
-		# Remove enemies that are off screen
-		for enemy in enemies_group:
-			if enemy.rect.right < 0:
+		# Update and draw beams
+		beam_group.update()
+		beam_group.draw(screen)
+
+		# Remove enemies that have left the string (passed player area) -> lose health
+		for enemy in list(enemies_group):
+			if enemy.rect.right < play_area_x:
+				# enemy left the string: kill and decrement health
 				enemy.kill()
+				current_health -= 1
+				# clamp
+				current_health = max(0, current_health)
+				# If no health left, end game immediately
+				if current_health <= 0:
+					running = False
+					break
 
 		pygame.display.flip()
 		clock.tick(TARGET_FPS)
 
+	# end of main loop: when running becomes False due to health=0 or quit
 	pygame.quit()
 	try:
 		sys.exit(0)

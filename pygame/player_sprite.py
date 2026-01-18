@@ -1,6 +1,8 @@
 import pygame
 import os
 
+from particle_beam import ParticleBeam
+
 # Player sprite at the left center of the screen
 class PlayerSprite(pygame.sprite.Sprite):
     def __init__(self, image_path="player.png", scale=1.0, offset=(0,0)):
@@ -30,3 +32,12 @@ class PlayerSprite(pygame.sprite.Sprite):
 
     def update(self):
         pass
+
+
+    def shoot_particle_beam(self, string, target_enemy=None):
+        """
+        Create and return a ParticleBeam aimed at target_enemy (if provided).
+        The caller should add the returned beam to the beam_group.
+        """
+        beam = ParticleBeam(self.rect.midright, string, target_enemy=target_enemy)
+        return beam
