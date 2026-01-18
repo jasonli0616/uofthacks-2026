@@ -1,7 +1,7 @@
 import pygame
 import random
 import os 
-from strings import START_POSITIONS
+from strings import START_POSITIONS, STRING_COLORS
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'gemini'))
 from enemies import Enemy
@@ -54,7 +54,9 @@ class EnemySprite(pygame.sprite.Sprite):
         # If both images failed, build a plain square (no note text)
         if not any(self.frames):
             fallback = pygame.Surface((40, 40), pygame.SRCALPHA)
-            fallback.fill((255, 255, 255))
+            # Use the string's color instead of white
+            color = STRING_COLORS.get(self.string, (255, 255, 255))
+            fallback.fill(color)
             self.frames = [fallback, fallback]
         else:
             # Replace missing frames with the other available frame
@@ -68,7 +70,10 @@ class EnemySprite(pygame.sprite.Sprite):
         for f in self.frames:
             w, h = f.get_width(), f.get_height()
             scaled_frames.append(pygame.transform.scale(f, (w * 3, h * 3)))
-        self.frames = scaled_frames
+        
+        # Apply string color tinting to frames
+        color = STRING_COLORS.get(self.string, (255, 255, 255))
+        self.frames = [self._colorize_frame(f, color) for f in scaled_frames]
 
         # Animation state
         self.frame_index = 0
@@ -94,6 +99,15 @@ class EnemySprite(pygame.sprite.Sprite):
             self.anim_counter = 0
             self.frame_index = 0 if self.frame_index == 1 else 1
             self.image = self.frames[self.frame_index]
+
+    def _colorize_frame(self, frame: pygame.Surface, color: tuple) -> pygame.Surface:
+        """Tint a frame with the given RGB color"""
+        f = frame.copy()
+        # Create a tint surface with the string color (fully opaque)
+        tint = pygame.Surface(f.get_size())
+        tint.fill(color)
+        f.blit(tint, (0, 0), special_flags=pygame.BLEND_MULT)
+        return f
 
     def _blit_outlined_text(self, surface: pygame.Surface, text: str, font: pygame.font.Font, center: tuple, text_color=(255, 255, 255), outline_color=(0, 0, 0), thickness=2):
         # Draw outline by rendering text around the center
@@ -123,6 +137,5 @@ class EnemySprite(pygame.sprite.Sprite):
         for position, s in START_POSITIONS.items():
             if s == string:
                 return position[1]  # Return the y coordinate
-        return 360  # Default to middle of screen if not found  
+        return 360  # Default to middle of screen if not found
 
-        

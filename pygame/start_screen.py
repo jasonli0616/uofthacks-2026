@@ -2,8 +2,8 @@ import pygame
 import sys
 
 # --- Configuration & Constants ---
-SCREEN_WIDTH = 1280
-SCREEN_HEIGHT = 720
+SCREEN_WIDTH = 1920
+SCREEN_HEIGHT = 1080
 
 # Palette - Marshall/Gibson inspired (Black, Gold, Red)
 COLOR_BG_DARK = (10, 10, 12)       # Deep void black
@@ -250,7 +250,7 @@ class BigButton(UIElement):
 def show_start_screen():
     pygame.init()
     clock = pygame.time.Clock()
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN)
     pygame.display.set_caption("<Git />ar - Setup")
 
     try:
