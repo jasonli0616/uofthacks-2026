@@ -30,3 +30,10 @@ class PlayerSprite(pygame.sprite.Sprite):
 
     def update(self):
         pass
+    
+    def shoot_particle_beam(self, string):
+        # Create a simple particle beam sprite moving right from the player
+        beam = ParticleBeam(self.rect.midright, string)
+        # Assuming beam_group is accessible; in main.py, add to beam_group
+        # For now, placeholder - integrate with main.py's beam_group
+        pass  # Actual addition handled in main.py
