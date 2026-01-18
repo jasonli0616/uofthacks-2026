@@ -34,12 +34,27 @@ def main(config):
     pygame.init()
     clock = pygame.time.Clock()
 
-    screen = pygame.display.set_mode(window_size, FULLSCREEN)
+    screen = pygame.display.set_mode(window_size, pygame.FULLSCREEN)
     pygame.display.set_caption("<Git />ar")
     bg_image = load_background(BACKGROUND_PATH)
     
-    # Game config is available here if needed
-    # config.bpm, config.scale, config.main_instrument, config.main_genre, config.mood
+    # Initialize pygame mixer for audio
+    pygame.mixer.init()
+    
+    # Generate 25 notes based on the key
+    notes_in_key = get_notes_in_key(config.scale)
+    generated_notes = []
+    strings = ["E", "A", "D", "G", "B", "e"]
+    enemy_spawn_interval = 120  # Spawn every 2 seconds at 60 FPS
+    
+    for i in range(25):
+        note_data = {
+            'string': random.choice(strings),
+            'note': random.choice(notes_in_key),
+            'fret': random.randint(0, 12),
+            'spawn_time': i * enemy_spawn_interval  # Stagger spawning
+        }
+        generated_notes.append(note_data)
     
     # Create sprite group for guitar strings
     strings_group = pygame.sprite.Group()
@@ -57,7 +72,7 @@ def main(config):
     
     # Enemy spawn timer
     enemy_spawn_timer = 0
-    enemy_spawn_interval = 120  # Spawn every 2 seconds at 60 FPS
+    note_index = 0
    
     running = True
     while running:
@@ -72,20 +87,14 @@ def main(config):
         else:
             screen.fill(FALLBACK_BG_COLOR)
         
-        # Spawn enemies periodically
+        # Spawn enemies based on pre-generated notes
         enemy_spawn_timer += 1
-        if enemy_spawn_timer >= enemy_spawn_interval:
+        if enemy_spawn_timer >= enemy_spawn_interval and note_index < len(generated_notes):
             enemy_spawn_timer = 0
-            # Spawn an enemy on a random string with random note and fret
-            strings = ["E", "A", "D", "G", "B", "e"]
-            notes = ["A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"]
-            enemy_data = {
-                'string': random.choice(strings),
-                'note': random.choice(notes),
-                'fret': random.randint(0, 12)
-            }
-            enemy = EnemySprite(enemy_data, speed=2)
+            enemy_data = generated_notes[note_index]
+            enemy = EnemySprite(enemy_data, speed=3)
             enemies_group.add(enemy)
+            note_index += 1
         
         # Update and draw strings
         strings_group.update()
@@ -116,6 +125,22 @@ def main(config):
         sys.exit(0)
     except SystemExit:
         pass
+
+
+def get_notes_in_key(scale):
+    """Return notes that belong to the given scale/key."""
+    # Major scales
+    scales = {
+        'C': ['C', 'D', 'E', 'F', 'G', 'A', 'B'],
+        'G': ['G', 'A', 'B', 'C', 'D', 'E', 'F#'],
+        'D': ['D', 'E', 'F#', 'G', 'A', 'B', 'C#'],
+        'A': ['A', 'B', 'C#', 'D', 'E', 'F#', 'G#'],
+        'E': ['E', 'F#', 'G#', 'A', 'B', 'C#', 'D#'],
+        'B': ['B', 'C#', 'D#', 'E', 'F#', 'G#', 'A#'],
+        'F': ['F', 'G', 'A', 'A#', 'C', 'D', 'E'],
+    }
+    
+    return scales.get(scale, ['C', 'D', 'E', 'F', 'G', 'A', 'B'])
 
 if __name__ == "__main__":
     # Show start screen first
