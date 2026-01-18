@@ -2,6 +2,10 @@ import pygame
 import random
 import os 
 
+# Screen constants
+SCREEN_WIDTH = 1920
+SCREEN_HEIGHT = 1080
+
 # Color mapping for the 6 guitar strings (metallic rainbow)
 STRING_COLORS = {
     "E": (255, 100, 100),     # Metallic red
@@ -12,42 +16,69 @@ STRING_COLORS = {
     "e": (150, 100, 220),     # Metallic indigo
 }
 
-START_POSITIONS = {
-    (640, 580): "E",
-    (640, 500): "A",
-    (640, 420): "D",
-    (640, 340): "G",
-    (640, 260): "B",
-    (640, 180): "e",
+# Image mapping for the 6 guitar strings
+STRING_IMAGES = {
+    "E": "red.png",
+    "A": "orange.png",
+    "D": "yellow.png",
+    "G": "green.png",
+    "B": "cyan.png",
+    "e": "purple.png",
 }
 
-# Map the guitar string to their respective positions on screen
-# Sprite should be a coloured rectangle that looks like a metal wound string that runs across the entire screen
+START_POSITIONS = {
+    (960, 790): "E",
+    (960, 690): "A",
+    (960, 590): "D",
+    (960, 490): "G",
+    (960, 390): "B",
+    (960, 290): "e",
+}
+
 class StringSprite(pygame.sprite.Sprite):
     def __init__(self, string, position):
         super().__init__()
         self.string = string
-        self.position = position
+        
+        # 1. Define dimensions
+        self.gap_width = 225  # The empty space on the left
+        self.string_width = SCREEN_WIDTH - self.gap_width # The remaining space
+        
         color = STRING_COLORS.get(string, (200, 200, 200))
         
-        # Create a retro pixel art wound string with a gap on the left
-        gap_width = 150  # Gap on the left for the player
-        string_width = 1280 - gap_width
-        self.image = pygame.Surface((string_width, 8), pygame.SRCALPHA)
+        # Get the correct image for this string
+        image_filename = STRING_IMAGES.get(string, "orange.png")
+        full_path = os.path.join(os.path.dirname(__file__), "imgs", image_filename)
         
-        # Draw the main string body as a solid line
-        pygame.draw.line(self.image, color, (0, 4), (string_width, 4), 6)
+        try:
+            # 2. Load and Scale Image
+            base_image = pygame.image.load(full_path).convert_alpha()
+            
+            original_height = base_image.get_height()
+            # Make strings even thinner: scale to 30% of original height
+            new_height = int(original_height * 0.375)
+            
+            # STRETCH the image to fit exactly the remaining width (1770px)
+            self.image = pygame.transform.scale(base_image, (self.string_width, new_height))
+                
+        except (FileNotFoundError, pygame.error):
+            # Fallback: Pixel art string filling the exact remaining width (thinner)
+            self.image = pygame.Surface((self.string_width, 6), pygame.SRCALPHA)
+            
+            # Draw thinner main line
+            pygame.draw.line(self.image, color, (0, 3), (self.string_width, 3), 4)
+            
+            # Draw finer texture
+            black = (0, 0, 0)
+            for x in range(0, self.string_width, 6):
+                pygame.draw.line(self.image, black, (x, 2), (x + 2, 4), 1)
         
-        # Add wound texture on top with diagonal pattern
-        black = (0, 0, 0)
-        for x in range(0, string_width, 6):
-            pygame.draw.line(self.image, black, (x, 1), (x + 3, 6), 2)
-        
+        # 3. Position the Rect
         self.rect = self.image.get_rect()
-        # Position the string starting after the gap
-        self.rect.center = (position[0] + gap_width // 2, position[1])
         
+        # We use 'midleft' to anchor the left side of the string to the gap
+        # position[1] is the Y-coordinate from START_POSITIONS
+        self.rect.midleft = (self.gap_width, position[1])
         
     def update(self):
         pass
-    

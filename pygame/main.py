@@ -1,6 +1,6 @@
 import sys
 import pygame
-from pygame.locals import QUIT, KEYDOWN, K_ESCAPE
+from pygame.locals import QUIT, KEYDOWN, K_ESCAPE, FULLSCREEN
 from strings import StringSprite, START_POSITIONS
 from start_screen import show_start_screen
 from enemy_sprites import EnemySprite
@@ -13,8 +13,8 @@ import os
 BACKGROUND_PATH = os.path.join(os.path.dirname(__file__), "imgs", "bg2.png")
 
 # Fallback window size / color if image can't be loaded
-SCREEN_WIDTH = 1280
-SCREEN_HEIGHT = 720
+SCREEN_WIDTH = 1920
+SCREEN_HEIGHT = 1080
 window_size = (SCREEN_WIDTH, SCREEN_HEIGHT)
 FALLBACK_BG_COLOR = (82, 82, 82)
 TARGET_FPS = 60
@@ -34,7 +34,7 @@ def main(config):
     pygame.init()
     clock = pygame.time.Clock()
 
-    screen = pygame.display.set_mode(window_size)
+    screen = pygame.display.set_mode(window_size, FULLSCREEN)
     pygame.display.set_caption("<Git />ar")
     bg_image = load_background(BACKGROUND_PATH)
     
@@ -84,7 +84,7 @@ def main(config):
                 'note': random.choice(notes),
                 'fret': random.randint(0, 12)
             }
-            enemy = EnemySprite(enemy_data, speed=3)
+            enemy = EnemySprite(enemy_data, speed=1.5)
             enemies_group.add(enemy)
         
         # Update and draw strings
