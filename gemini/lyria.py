@@ -171,9 +171,9 @@ async def main():
 
         
         # Set the initial prompts
-        main_instrument = "Acoustic Guitar"
-        main_genre = "60s Psychedelic Rock"
-        mood = "Live Performance"
+        main_instrument = "Chugging electric guitar"
+        main_genre = "Heavy metal"
+        mood = "Relaxed"
         await session.set_weighted_prompts(
             prompts=[types.WeightedPrompt(text=main_instrument, weight=0.5),
                      types.WeightedPrompt(text=main_genre, weight=0.8),
