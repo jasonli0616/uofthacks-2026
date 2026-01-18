@@ -6,17 +6,19 @@ from google import genai
 from google.genai import types
 
 load_dotenv()  # Load environment variables from a .env file if present
+
 # Longer buffer reduces chance of audio drop, but also delays audio and user commands.
-BUFFER_SECONDS=1
-CHUNK=4200
-FORMAT=pyaudio.paInt16
-CHANNELS=2
-MODEL='models/lyria-realtime-exp'
-OUTPUT_RATE=48000
+BUFFER_SECONDS = 1
+CHUNK = 4200
+FORMAT = pyaudio.paInt16
+CHANNELS = 2
+MODEL = 'models/lyria-realtime-exp'
+OUTPUT_RATE = 48000
 
 api_key = os.environ.get("GOOGLE_API_KEY")
 
 if api_key is None:
+    # Only ask for input if running directly, otherwise this might block your game
     print("Please enter your API key")
     api_key = input("API Key: ").strip()
 
@@ -25,7 +27,8 @@ client = genai.Client(
     http_options={'api_version': 'v1alpha',}, # v1alpha since Lyria RealTime is only experimental
 )
 
-async def main():
+# CHANGED: Renamed from main() to match your import and added arguments
+async def start_music_session(instrument="Electric Guitar", genre="Rock", mood="Energetic", bpm=120):
     p = pyaudio.PyAudio()
     config = types.LiveMusicGenerationConfig()
     async with client.aio.live.music.connect(model=MODEL) as session:
@@ -38,33 +41,34 @@ async def main():
                 if chunks_count == 1:
                     # Introduce a delay before starting playback to have a buffer for network jitter.
                     await asyncio.sleep(BUFFER_SECONDS)
-                # print("Received chunk: ", message)
+                
                 if message.server_content:
-                # print("Received chunk with metadata: ", message.server_content.audio_chunks[0].source_metadata)
                     audio_data = message.server_content.audio_chunks[0].data
                     output_stream.write(audio_data)
                 elif message.filtered_prompt:
                     print("Prompt was filtered out: ", message.filtered_prompt)
                 else:
-                    print("Unknown error occured with message: ", message)
+                    # Occasional empty messages are normal
+                    pass
                 await asyncio.sleep(10**-12)
 
         async def send():
             await asyncio.sleep(5) # Allow initial prompt to play a bit
 
+            # NOTE: usage of input() here might conflict if your game takes over the console.
+            # But we leave it for now so you can still control it if you run from a terminal.
             while True:
                 print("Set new prompt ((bpm=<number|'AUTO'>, scale=<enum|'AUTO'>, top_k=<number|'AUTO'>, 'play', 'pause', 'prompt1:w1,prompt2:w2,...', or single text prompt)")
-                prompt_str = await asyncio.to_thread(
-                    input,
-                    " > "
-                )
+                
+                # We use asyncio.to_thread to prevent input() from blocking the audio loop
+                prompt_str = await asyncio.to_thread(input, " > ")
 
-                if not prompt_str: # Skip empty input
+                if not prompt_str: 
                     continue
 
                 if prompt_str.lower() == 'q':
                     print("Sending STOP command.")
-                    await session.stop();
+                    await session.stop()
                     return False
 
                 if prompt_str.lower() == 'play':
@@ -95,7 +99,7 @@ async def main():
                     print(f"Setting Scale to AUTO, which requires resetting context.")
                   else:
                     found_scale_enum_member = None
-                    for scale_member in types.Scale: # types.Scale is an enum
+                    for scale_member in types.Scale: 
                         if scale_member.name.lower() == prompt_str.lower():
                             found_scale_enum_member = scale_member
                             break
@@ -116,77 +120,68 @@ async def main():
                     await session.reset_context()
                     continue
 
-                # Check for multiple weighted prompts "prompt1:number1, prompt2:number2, ..."
                 if ":" in prompt_str:
                     parsed_prompts = []
                     segments = prompt_str.split(',')
-                    malformed_segment_exists = False # Tracks if any segment had a parsing error
+                    malformed_segment_exists = False 
 
                     for segment_str_raw in segments:
                         segment_str = segment_str_raw.strip()
-                        if not segment_str: # Skip empty segments (e.g., from "text1:1, , text2:2")
+                        if not segment_str: 
                             continue
 
-                        # Split on the first colon only, in case prompt text itself contains colons
                         parts = segment_str.split(':', 1)
 
                         if len(parts) == 2:
                             text_p = parts[0].strip()
                             weight_s = parts[1].strip()
 
-                            if not text_p: # Prompt text should not be empty
-                                print(f"Error: Empty prompt text in segment '{segment_str_raw}'. Skipping this segment.")
+                            if not text_p: 
+                                print(f"Error: Empty prompt text in segment '{segment_str_raw}'. Skipping.")
                                 malformed_segment_exists = True
-                                continue # Skip this malformed segment
+                                continue 
                             try:
-                                weight_f = float(weight_s) # Weights are floats
+                                weight_f = float(weight_s) 
                                 parsed_prompts.append(types.WeightedPrompt(text=text_p, weight=weight_f))
                             except ValueError:
-                                print(f"Error: Invalid weight '{weight_s}' in segment '{segment_str_raw}'. Must be a number. Skipping this segment.")
+                                print(f"Error: Invalid weight in segment '{segment_str_raw}'. Skipping.")
                                 malformed_segment_exists = True
-                                continue # Skip this malformed segment
+                                continue 
                         else:
-                            # This segment is not in "text:weight" format.
-                            print(f"Error: Segment '{segment_str_raw}' is not in 'text:weight' format. Skipping this segment.")
+                            print(f"Error: Segment '{segment_str_raw}' not in 'text:weight' format. Skipping.")
                             malformed_segment_exists = True
-                            continue # Skip this malformed segment
+                            continue 
 
-                    if parsed_prompts: # If at least one prompt was successfully parsed.
+                    if parsed_prompts: 
                         prompt_repr = [f"'{p.text}':{p.weight}" for p in parsed_prompts]
                         if malformed_segment_exists:
-                            print(f"Partially sending {len(parsed_prompts)} valid weighted prompt(s) due to errors in other segments: {', '.join(prompt_repr)}")
+                            print(f"Partially sending valid prompts: {', '.join(prompt_repr)}")
                         else:
                             print(f"Sending multiple weighted prompts: {', '.join(prompt_repr)}")
                         await session.set_weighted_prompts(prompts=parsed_prompts)
-                    else: # No valid prompts were parsed from the input string that contained ":"
-                        print("Error: Input contained ':' suggesting multi-prompt format, but no valid 'text:weight' segments were successfully parsed. No action taken.")
-
+                    else: 
+                        print("Error: No valid 'text:weight' segments found.")
                     continue
 
-                # If none of the above, treat as a regular single text prompt
                 print(f"Sending single text prompt: \"{prompt_str}\"")
                 await session.set_weighted_prompts(
                     prompts=[types.WeightedPrompt(text=prompt_str, weight=1.0)]
                 )
 
         
-        # Set the initial prompts
-        main_instrument = "Chugging electric guitar"
-        main_genre = "Heavy metal"
-        mood = "Relaxed"
+        # CHANGED: Use the arguments passed into the function instead of hardcoded strings
+        print(f"Initializing Lyria with: {instrument}, {genre}, {mood} @ {bpm} BPM")
         await session.set_weighted_prompts(
-            prompts=[types.WeightedPrompt(text=main_instrument, weight=0.5),
-                     types.WeightedPrompt(text=main_genre, weight=0.8),
+            prompts=[types.WeightedPrompt(text=instrument, weight=0.5),
+                     types.WeightedPrompt(text=genre, weight=0.8),
                      types.WeightedPrompt(text=mood, weight=0.5)]
         )
 
-        # Set initial BPM and Scale
-        config.bpm = 85
-        config.scale = types.Scale.G_MAJOR_E_MINOR # Example initial scale
-        print(f"Setting initial BPM to {config.bpm} and scale to {config.scale.name}")
+        # CHANGED: Use the bpm argument
+        config.bpm = int(bpm)
+        config.scale = types.Scale.G_MAJOR_E_MINOR 
         await session.set_music_generation_config(config=config)
 
-       
         await session.play()
 
         send_task = asyncio.create_task(send())
@@ -198,4 +193,6 @@ async def main():
     # Clean up PyAudio
     p.terminate()
 
-asyncio.run(main())
+# CHANGED: This protects the code from running when imported!
+if __name__ == "__main__":
+    asyncio.run(start_music_session())

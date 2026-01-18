@@ -1,0 +1,6 @@
+{
+    "python.analysis.extraPaths": [
+        "./gemini",
+        "./pygame/gemini"
+    ]
+}

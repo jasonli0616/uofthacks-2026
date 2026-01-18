@@ -11,4 +11,4 @@ if __name__ == "__main__":
 			self.mood = "Crunchy Distortion"
 
 	config = Config()
-	game.main(config)
+	game.main()

@@ -5,10 +5,8 @@ import os
 import sys
 from strings import START_POSITIONS, STRING_COLORS
 
-# Add parent directory to path if needed for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'gemini'))
-# Assuming Enemy is defined in enemies.py
-from enemies import Enemy
+# REMOVED: sys.path hacks and the broken import "from gemini.enemies import Enemy"
+# We don't need the Enemy class definition because we are using dictionaries now.
 
 class DebrisParticle(pygame.sprite.Sprite):
     """
@@ -18,18 +16,14 @@ class DebrisParticle(pygame.sprite.Sprite):
         super().__init__()
         self.pos = list(pos)
         self.color = color
-        # keep scale from getting too small or debris disappears
         eff_scale = max(0.4, scale) 
         
-        # BIGGER EXPLOSION: Increased speed range significantly (was 2,8 -> now 8, 22)
         angle = random.uniform(0, 2 * math.pi)
         speed = random.uniform(8, 22) * eff_scale 
         self.vel = [math.cos(angle) * speed, math.sin(angle) * speed]
         
-        # BIGGER PIECES: Increased base size (was 4,10 -> now 10, 30)
         self.size = random.randint(int(10 * eff_scale), int(30 * eff_scale))
         self.original_size = self.size
-        # LONGER LIFE: so they travel further (was 20,40 -> now 40, 70)
         self.lifetime = random.randint(40, 70)
         self.start_life = self.lifetime
         
@@ -40,7 +34,6 @@ class DebrisParticle(pygame.sprite.Sprite):
         self.pos[0] += self.vel[0]
         self.pos[1] += self.vel[1]
         
-        # Slight drag to make movement look more physics-based
         self.vel[0] *= 0.96
         self.vel[1] *= 0.96
 
@@ -55,7 +48,6 @@ class DebrisParticle(pygame.sprite.Sprite):
         self.image = pygame.Surface((current_size * 2, current_size * 2), pygame.SRCALPHA)
         
         r, g, b = self.color
-        # Flash white longer at the start for more impact
         if life_ratio > 0.6:
             draw_color = (255, 255, 255)
         else:
@@ -73,18 +65,17 @@ class EnemySprite(pygame.sprite.Sprite):
         
         self.scale = max(0.0001, float(scale))
         self.offset = offset
+        self.data = enemy_data if isinstance(enemy_data, dict) else {}
         
         # --- Data Parsing ---
-        if isinstance(enemy_data, Enemy):
-            self.string = enemy_data.string
-            self.note = enemy_data.note
-            self.fret = enemy_data.fret
-        elif isinstance(enemy_data, dict):
+        # Simplified to handle the dictionary format from gemini/enemies.py
+        if isinstance(enemy_data, dict):
             self.string = enemy_data.get('string', 'E')
             self.note = enemy_data.get('note', 'A')
             self.fret = enemy_data.get('fret', 0)
         else:
-            self.string = enemy_data
+            # Fallback for legacy calls or plain strings
+            self.string = str(enemy_data)
             self.note = "A"
             self.fret = 0
         
@@ -140,28 +131,21 @@ class EnemySprite(pygame.sprite.Sprite):
         # --- HIT/KNOCKBACK STATE ---
         self.is_hit = False
         self.knockback_timer = 0
-        # How violent the knockback is (faster than normal movement)
         self.knockback_speed = int(self.speed * 4 * max(1, self.scale))
 
     def update(self):
         if not self.is_hit:
-            # Normal behavior: Move left
             self.rect.x -= int(self.speed * max(1, self.scale))
         else:
-            # Hit behavior: FLY BACKWARDS (move right rapidly)
             self.rect.x += self.knockback_speed
-            
-            # Shake effect vertically slightly while flying back
             shake = random.randint(-3, 3)
             self.rect.y += shake
 
             self.knockback_timer -= 1
             if self.knockback_timer <= 0:
-                # Knockback finished, trigger final explosion
                 self._finalize_explosion()
                 return
 
-        # Animate frames (only if not hit, or maybe speed up animation if hit?)
         self.anim_counter += 1
         if self.anim_counter >= self.anim_interval:
             self.anim_counter = 0
@@ -169,22 +153,14 @@ class EnemySprite(pygame.sprite.Sprite):
             self.image = self.frames[self.frame_index]
 
     def hit_by_beam(self):
-        """
-        Call this when the beam hits the enemy. 
-        Starts the backwards fly-back, then explodes.
-        """
         if not self.is_hit:
             self.is_hit = True
-            # How many frames to fly backwards before exploding
             self.knockback_timer = 12 
-            # Optionally flash the sprite white here if you wanted
 
     def _finalize_explosion(self):
-        """Internal method triggered after knockback finishes."""
         my_groups = self.groups()
         color = STRING_COLORS.get(self.string, (255, 255, 255))
         
-        # BIGGER EXPLOSION: Increased particle count (was 15 -> now 40)
         num_particles = 40
         for _ in range(num_particles):
             debris = DebrisParticle(
@@ -197,8 +173,6 @@ class EnemySprite(pygame.sprite.Sprite):
                 
         self.kill()
 
-    # --- Helper Methods ---
-    # (Crucial: If the enemy is flying backwards, don't draw the fret label, it looks weird)
     def draw_label(self, surface: pygame.Surface):
         if self.is_hit: return 
 

@@ -1,7 +1,7 @@
 import time
 
 from .ml_chord_tracking import chord_tracking
-from .recognize_pitch import audio
+from ..pygame import audio
 
 def main(poll_interval=0.25):
 
