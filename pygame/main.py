@@ -6,10 +6,13 @@ from start_screen import show_start_screen
 from enemy_sprites import EnemySprite
 from player_sprite import PlayerSprite
 import random
+import os
 
 
 # Path to your background image (edit this to your filename)
-BACKGROUND_PATH = "background.png"
+
+image_path="imgs/bg2.png"
+full_path = os.path.join(os.path.dirname(__file__), image_path)
 
 # Fallback window size / color if image can't be loaded
 SCREEN_WIDTH = 1280
@@ -20,7 +23,7 @@ TARGET_FPS = 60
 
 def load_background(path):
     try:
-        image = pygame.image.load(path)
+        image = pygame.image.load(full_path).convert_alpha()
         # convert for faster blitting; use convert_alpha() if you need per-pixel alpha
         image = image.convert()
         return image
@@ -35,7 +38,7 @@ def main(config):
 
     screen = pygame.display.set_mode(window_size)
     pygame.display.set_caption("<Git />ar")
-    bg_image = load_background(BACKGROUND_PATH)
+    bg_image = load_background(image_path)
     
     # Game config is available here if needed
     # config.bpm, config.scale, config.main_instrument, config.main_genre, config.mood
