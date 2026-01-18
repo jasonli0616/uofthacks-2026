@@ -1,6 +1,7 @@
 import pygame
 import random
-import os 
+import os
+from start_screen import SCREEN_WIDTH as DESIGN_WIDTH, SCREEN_HEIGHT as DESIGN_HEIGHT
 
 # Screen constants
 SCREEN_WIDTH = 1920
@@ -36,13 +37,17 @@ START_POSITIONS = {
 }
 
 class StringSprite(pygame.sprite.Sprite):
-    def __init__(self, string, position):
+    def __init__(self, string, position, scale=1.0, offset=(0,0)):
         super().__init__()
         self.string = string
+        self.scale = max(0.0001, float(scale))
+        self.offset = offset
         
-        # 1. Define dimensions
-        self.gap_width = 225  # The empty space on the left
-        self.string_width = SCREEN_WIDTH - self.gap_width # The remaining space
+        # 1. Define dimensions (design values scaled)
+        design_gap = 225  # design-space gap
+        self.gap_width = int(design_gap * self.scale)
+        # compute string width from design width scaled - gap
+        self.string_width = int(DESIGN_WIDTH * self.scale) - self.gap_width
         
         color = STRING_COLORS.get(string, (200, 200, 200))
         
@@ -55,30 +60,28 @@ class StringSprite(pygame.sprite.Sprite):
             base_image = pygame.image.load(full_path).convert_alpha()
             
             original_height = base_image.get_height()
-            # Make strings even thinner: scale to 30% of original height
-            new_height = int(original_height * 0.45)
+            # Make strings thinner: scale to design fraction then apply scale multiplier
+            new_height = max(1, int(original_height * 0.45 * self.scale))
             
-            # STRETCH the image to fit exactly the remaining width (1770px)
-            self.image = pygame.transform.scale(base_image, (self.string_width, new_height))
+            # STRETCH the image to fit exactly the remaining width
+            self.image = pygame.transform.scale(base_image, (max(1, self.string_width), new_height))
                 
         except (FileNotFoundError, pygame.error):
             # Fallback: Pixel art string filling the exact remaining width (thinner)
-            self.image = pygame.Surface((self.string_width, 6), pygame.SRCALPHA)
+            self.image = pygame.Surface((max(1, self.string_width), max(1, int(6 * self.scale))), pygame.SRCALPHA)
             
             # Draw thinner main line
-            pygame.draw.line(self.image, color, (0, 3), (self.string_width, 3), 4)
+            pygame.draw.line(self.image, color, (0, max(1, int(3 * self.scale))), (self.string_width, max(1, int(3 * self.scale))), max(1, int(4 * self.scale)))
             
             # Draw finer texture
             black = (0, 0, 0)
-            for x in range(0, self.string_width, 6):
-                pygame.draw.line(self.image, black, (x, 2), (x + 2, 4), 1)
+            step = max(2, int(6 * self.scale))
+            for x in range(0, self.string_width, step):
+                pygame.draw.line(self.image, black, (x, max(1, int(2 * self.scale))), (min(self.string_width, x + 2), max(1, int(4 * self.scale))), max(1, int(1 * self.scale)))
         
-        # 3. Position the Rect
+        # 3. Position the Rect (position is design-space tuple)
         self.rect = self.image.get_rect()
-        
-        # We use 'midleft' to anchor the left side of the string to the gap
-        # position[1] is the Y-coordinate from START_POSITIONS
-        self.rect.midleft = (self.gap_width, position[1])
+        self.rect.midleft = (self.gap_width + self.offset[0], int(position[1] * self.scale + self.offset[1]))
         
     def update(self):
         pass

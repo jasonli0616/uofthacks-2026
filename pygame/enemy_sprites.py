@@ -6,19 +6,23 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'gemini'))
 from enemies import Enemy
 
-# Screen width for spawning at right edge
-SCREEN_WIDTH = 1920
+# remove hardcoded SCREEN_WIDTH usage; spawn X will be passed in or computed from scale
 
 class EnemySprite(pygame.sprite.Sprite):
-    def __init__(self, enemy_data, speed=3, image_path=None):
+    def __init__(self, enemy_data, speed=3, image_path=None, screen_width=None, scale=1.0, offset=(0,0)):
         """
         Create an enemy sprite from Enemy data
         Args:
             enemy_data: Enemy object from enemies.py or dict with 'string', 'note', 'fret'
             speed: Movement speed (default 3)
-            image_path: Optional path to enemy image (default None = square)
+            screen_width: actual screen width in pixels where enemies should spawn (right edge)
+            scale: uniform scale factor from design-space -> screen-space
+            offset: (offset_x, offset_y) letterbox offset
         """
         super().__init__()
+        
+        self.scale = max(0.0001, float(scale))
+        self.offset = offset
         
         # Handle both Enemy objects and dicts
         if isinstance(enemy_data, Enemy):
@@ -53,7 +57,7 @@ class EnemySprite(pygame.sprite.Sprite):
 
         # If both images failed, build a plain square (no note text)
         if not any(self.frames):
-            fallback = pygame.Surface((40, 40), pygame.SRCALPHA)
+            fallback = pygame.Surface((max(8, int(40 * self.scale)), max(8, int(40 * self.scale))), pygame.SRCALPHA)
             # Use the string's color instead of white
             color = STRING_COLORS.get(self.string, (255, 255, 255))
             fallback.fill(color)
@@ -65,11 +69,13 @@ class EnemySprite(pygame.sprite.Sprite):
             if self.frames[1] is None and self.frames[0] is not None:
                 self.frames[1] = self.frames[0]
 
-        # Scale frames to 2x size
+        # Scale frames by scale factor and a design multiplier (keep visible)
         scaled_frames = []
         for f in self.frames:
             w, h = f.get_width(), f.get_height()
-            scaled_frames.append(pygame.transform.scale(f, (w * 3, h * 3)))
+            nw = max(1, int(w * self.scale * 1.8))
+            nh = max(1, int(h * self.scale * 1.8))
+            scaled_frames.append(pygame.transform.scale(f, (nw, nh)))
         
         # Apply string color tinting to frames
         color = STRING_COLORS.get(self.string, (255, 255, 255))
@@ -78,20 +84,22 @@ class EnemySprite(pygame.sprite.Sprite):
         # Animation state
         self.frame_index = 0
         self.anim_counter = 0
-        self.anim_interval = 30  # ticks between frame switches
+        self.anim_interval = max(1, int(30 * self.scale))  # scale animation timing slightly
 
         self.image = self.frames[self.frame_index]
         
         self.rect = self.image.get_rect()
         
         # Spawn at the right edge of the screen on the string's y position
-        string_y = self.get_string_y_position(self.string)
-        # Offset enemies 15 pixels higher on their string
-        self.rect.center = (SCREEN_WIDTH, string_y - 30)
+        # Use provided screen_width (actual screen pixels) or compute from design * scale + offset
+        spawn_x = screen_width if screen_width is not None else int(self.offset[0] + (1920 * self.scale))
+        string_y = int(self.get_string_y_position(self.string) * self.scale + self.offset[1])
+        # Offset enemies a bit up on their string scaled
+        self.rect.center = (spawn_x, string_y - max(1, int(30 * self.scale)))
 
     def update(self):
         # Move left along the string
-        self.rect.x -= self.speed
+        self.rect.x -= int(self.speed * max(1, self.scale))
 
         # Animate frames
         self.anim_counter += 1
@@ -103,9 +111,8 @@ class EnemySprite(pygame.sprite.Sprite):
     def _colorize_frame(self, frame: pygame.Surface, color: tuple) -> pygame.Surface:
         """Tint a frame with the given RGB color"""
         f = frame.copy()
-        # Create a tint surface with the string color (fully opaque)
-        tint = pygame.Surface(f.get_size())
-        tint.fill(color)
+        tint = pygame.Surface(f.get_size(), pygame.SRCALPHA)
+        tint.fill(color + (0,))
         f.blit(tint, (0, 0), special_flags=pygame.BLEND_MULT)
         return f
 
@@ -124,18 +131,18 @@ class EnemySprite(pygame.sprite.Sprite):
         surface.blit(text_surf, rect)
 
     def draw_label(self, surface: pygame.Surface):
-        # Render only the fret number, trailing behind the enemy by +50px
+        # Render only the fret number, trailing behind the enemy by +50px scaled
         w, h = self.image.get_width(), self.image.get_height()
-        label_size = max(24, int(h * 0.7))
+        label_size = max(12, int(h * 0.7))
         font = pygame.font.Font(None, label_size)
         font.set_bold(True)
-        center = (self.rect.centerx + 50, self.rect.centery)
-        self._blit_outlined_text(surface, str(self.fret), font, center, text_color=(255, 255, 255), outline_color=(0, 0, 0), thickness=2)
+        center = (self.rect.centerx + max(8, int(50 * self.scale)), self.rect.centery)
+        self._blit_outlined_text(surface, str(self.fret), font, center, text_color=(255, 255, 255), outline_color=(0, 0, 0), thickness=max(1, int(2 * self.scale)))
     
     # Get the y position of the string this enemy belongs to
     def get_string_y_position(self, string):
         for position, s in START_POSITIONS.items():
             if s == string:
-                return position[1]  # Return the y coordinate
-        return 360  # Default to middle of screen if not found
+                return position[1]  # Return the design y coordinate
+        return 360  # Default to middle of design screen if not found
 
