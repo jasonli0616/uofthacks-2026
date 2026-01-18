@@ -30,19 +30,22 @@ class StringSprite(pygame.sprite.Sprite):
         self.position = position
         color = STRING_COLORS.get(string, (200, 200, 200))
         
-        # Create a retro pixel art wound string
-        self.image = pygame.Surface((1280, 8), pygame.SRCALPHA)
+        # Create a retro pixel art wound string with a gap on the left
+        gap_width = 150  # Gap on the left for the player
+        string_width = 1280 - gap_width
+        self.image = pygame.Surface((string_width, 8), pygame.SRCALPHA)
         
         # Draw the main string body as a solid line
-        pygame.draw.line(self.image, color, (0, 4), (1280, 4), 6)
+        pygame.draw.line(self.image, color, (0, 4), (string_width, 4), 6)
         
         # Add wound texture on top with diagonal pattern
         black = (0, 0, 0)
-        for x in range(0, 1280, 6):
+        for x in range(0, string_width, 6):
             pygame.draw.line(self.image, black, (x, 1), (x + 3, 6), 2)
         
         self.rect = self.image.get_rect()
-        self.rect.center = position
+        # Position the string starting after the gap
+        self.rect.center = (position[0] + gap_width // 2, position[1])
         
         
     def update(self):
