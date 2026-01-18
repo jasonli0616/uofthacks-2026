@@ -2,7 +2,6 @@ import sys
 import pygame
 from pygame.locals import QUIT, KEYDOWN, K_ESCAPE, FULLSCREEN
 from strings import StringSprite, START_POSITIONS
-from start_screen import show_start_screen
 from enemy_sprites import EnemySprite
 from player_sprite import PlayerSprite
 import random
@@ -143,9 +142,14 @@ def get_notes_in_key(scale):
     return scales.get(scale, ['C', 'D', 'E', 'F', 'G', 'A', 'B'])
 
 if __name__ == "__main__":
-    # Show start screen first
-    config = show_start_screen()
+    # Create a simple config object with default values
+    class Config:
+        def __init__(self):
+            self.bpm = 120
+            self.scale = "G"
+            self.instrument = "Shredding Guitar"
+            self.genre = "Classic Rock"
+            self.mood = "Crunchy Distortion"
     
-    # If user didn't quit on start screen, run the main game
-    if config:
-        main(config)
+    config = Config()
+    main(config)
