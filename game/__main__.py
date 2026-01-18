@@ -1,4 +1,4 @@
-import game
+from . import game
 
 if __name__ == "__main__":
 	# Create a simple config object with default values
