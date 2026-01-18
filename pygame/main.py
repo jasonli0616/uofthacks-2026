@@ -10,7 +10,7 @@ import os
 
 
 # Path to your background image (edit this to your filename)
-BACKGROUND_PATH = os.path.join(os.path.dirname(__file__), "imgs", "background.png")
+BACKGROUND_PATH = os.path.join(os.path.dirname(__file__), "imgs", "bg2.png")
 
 # Fallback window size / color if image can't be loaded
 SCREEN_WIDTH = 1280
@@ -21,7 +21,7 @@ TARGET_FPS = 60
 
 def load_background(path):
     try:
-        image = pygame.image.load(path)
+        image = pygame.image.load(BACKGROUND_PATH).convert_alpha()
         # convert for faster blitting; use convert_alpha() if you need per-pixel alpha
         image = image.convert()
         return image
