@@ -4,6 +4,7 @@ from pygame.locals import QUIT, KEYDOWN, K_ESCAPE
 from strings import StringSprite, START_POSITIONS
 from start_screen import show_start_screen
 from enemy_sprites import EnemySprite
+from player_sprite import PlayerSprite
 import random
 
 
@@ -48,6 +49,11 @@ def main(config):
     # Create sprite group for enemies
     enemies_group = pygame.sprite.Group()
     
+    # Create player sprite
+    player = PlayerSprite()
+    player_group = pygame.sprite.Group()
+    player_group.add(player)
+    
     # Enemy spawn timer
     enemy_spawn_timer = 0
     enemy_spawn_interval = 120  # Spawn every 2 seconds at 60 FPS
@@ -87,6 +93,10 @@ def main(config):
         # Update and draw enemies
         enemies_group.update()
         enemies_group.draw(screen)
+        
+        # Update and draw player
+        player_group.update()
+        player_group.draw(screen)
         
         # Remove enemies that are off screen
         for enemy in enemies_group:
