@@ -51,14 +51,10 @@ class EnemySprite(pygame.sprite.Sprite):
             except (FileNotFoundError, pygame.error):
                 self.frames.append(None)
 
-        # If both images failed, build a labeled square
+        # If both images failed, build a plain square (no note text)
         if not any(self.frames):
             fallback = pygame.Surface((40, 40), pygame.SRCALPHA)
             fallback.fill((255, 255, 255))
-            font = pygame.font.Font(None, 20)
-            text = font.render(f"{self.note}{self.fret}", True, (0, 0, 0))
-            text_rect = text.get_rect(center=(20, 20))
-            fallback.blit(text, text_rect)
             self.frames = [fallback, fallback]
         else:
             # Replace missing frames with the other available frame
@@ -66,6 +62,13 @@ class EnemySprite(pygame.sprite.Sprite):
                 self.frames[0] = self.frames[1]
             if self.frames[1] is None and self.frames[0] is not None:
                 self.frames[1] = self.frames[0]
+
+        # Scale frames to 2x size
+        scaled_frames = []
+        for f in self.frames:
+            w, h = f.get_width(), f.get_height()
+            scaled_frames.append(pygame.transform.scale(f, (w * 3, h * 3)))
+        self.frames = scaled_frames
 
         # Animation state
         self.frame_index = 0
@@ -79,7 +82,7 @@ class EnemySprite(pygame.sprite.Sprite):
         # Spawn at the right edge of the screen on the string's y position
         string_y = self.get_string_y_position(self.string)
         # Offset enemies 15 pixels higher on their string
-        self.rect.center = (SCREEN_WIDTH, string_y - 15)
+        self.rect.center = (SCREEN_WIDTH, string_y - 30)
 
     def update(self):
         # Move left along the string
@@ -91,6 +94,29 @@ class EnemySprite(pygame.sprite.Sprite):
             self.anim_counter = 0
             self.frame_index = 0 if self.frame_index == 1 else 1
             self.image = self.frames[self.frame_index]
+
+    def _blit_outlined_text(self, surface: pygame.Surface, text: str, font: pygame.font.Font, center: tuple, text_color=(255, 255, 255), outline_color=(0, 0, 0), thickness=2):
+        # Draw outline by rendering text around the center
+        text_surf = font.render(text, True, text_color)
+        outline_surf = font.render(text, True, outline_color)
+        cx, cy = center
+        for dx in range(-thickness, thickness + 1):
+            for dy in range(-thickness, thickness + 1):
+                if dx == 0 and dy == 0:
+                    continue
+                rect = outline_surf.get_rect(center=(cx + dx, cy + dy))
+                surface.blit(outline_surf, rect)
+        rect = text_surf.get_rect(center=center)
+        surface.blit(text_surf, rect)
+
+    def draw_label(self, surface: pygame.Surface):
+        # Render only the fret number, trailing behind the enemy by +50px
+        w, h = self.image.get_width(), self.image.get_height()
+        label_size = max(24, int(h * 0.7))
+        font = pygame.font.Font(None, label_size)
+        font.set_bold(True)
+        center = (self.rect.centerx + 50, self.rect.centery)
+        self._blit_outlined_text(surface, str(self.fret), font, center, text_color=(255, 255, 255), outline_color=(0, 0, 0), thickness=2)
     
     # Get the y position of the string this enemy belongs to
     def get_string_y_position(self, string):

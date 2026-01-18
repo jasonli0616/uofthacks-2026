@@ -27,12 +27,12 @@ STRING_IMAGES = {
 }
 
 START_POSITIONS = {
-    (960, 790): "E",
-    (960, 690): "A",
-    (960, 590): "D",
-    (960, 490): "G",
-    (960, 390): "B",
-    (960, 290): "e",
+    (960, 940): "E",
+    (960, 780): "A",
+    (960, 620): "D",
+    (960, 460): "G",
+    (960, 300): "B",
+    (960, 140): "e",
 }
 
 class StringSprite(pygame.sprite.Sprite):
@@ -56,7 +56,7 @@ class StringSprite(pygame.sprite.Sprite):
             
             original_height = base_image.get_height()
             # Make strings even thinner: scale to 30% of original height
-            new_height = int(original_height * 0.375)
+            new_height = int(original_height * 0.45)
             
             # STRETCH the image to fit exactly the remaining width (1770px)
             self.image = pygame.transform.scale(base_image, (self.string_width, new_height))

@@ -17,7 +17,7 @@ SCREEN_WIDTH = 1920
 SCREEN_HEIGHT = 1080
 window_size = (SCREEN_WIDTH, SCREEN_HEIGHT)
 FALLBACK_BG_COLOR = (82, 82, 82)
-TARGET_FPS = 60
+TARGET_FPS = 120
 
 def load_background(path):
     try:
@@ -84,7 +84,7 @@ def main(config):
                 'note': random.choice(notes),
                 'fret': random.randint(0, 12)
             }
-            enemy = EnemySprite(enemy_data, speed=1.5)
+            enemy = EnemySprite(enemy_data, speed=2)
             enemies_group.add(enemy)
         
         # Update and draw strings
@@ -94,6 +94,10 @@ def main(config):
         # Update and draw enemies
         enemies_group.update()
         enemies_group.draw(screen)
+        # Draw trailing fret labels
+        for enemy in enemies_group:
+            if hasattr(enemy, "draw_label"):
+                enemy.draw_label(screen)
         
         # Update and draw player
         player_group.update()
