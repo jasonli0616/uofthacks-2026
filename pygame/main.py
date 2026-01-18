@@ -6,10 +6,11 @@ from start_screen import show_start_screen
 from enemy_sprites import EnemySprite
 from player_sprite import PlayerSprite
 import random
+import os
 
 
 # Path to your background image (edit this to your filename)
-BACKGROUND_PATH = "background.png"
+BACKGROUND_PATH = os.path.join(os.path.dirname(__file__), "imgs", "background.png")
 
 # Fallback window size / color if image can't be loaded
 SCREEN_WIDTH = 1280

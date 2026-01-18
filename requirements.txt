@@ -5,3 +5,4 @@ mediapipe
 aubio
 sounddevice
 pygame
+google.genai
