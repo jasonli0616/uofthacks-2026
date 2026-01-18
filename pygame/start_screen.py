@@ -5,137 +5,198 @@ import threading
 import asyncio
 
 from gemini.lyria import start_music_session
-# -----------------------
 
-# Display constants used by start screen and imported by game.py
+# --- CONFIGURATION ---
+# Design resolution (the logic assumes this, then scales down/up)
 SCREEN_WIDTH = 1920
 SCREEN_HEIGHT = 1080
-window_size = (SCREEN_WIDTH, SCREEN_HEIGHT)
-FALLBACK_BG_COLOR = (82, 82, 82)
 
+# --- PATHS ---
+BACKGROUND_PATH = os.path.join(os.path.dirname(__file__), "imgs", "bg2.png")
 LOGO_PATH = os.path.join(os.path.dirname(__file__), "imgs", "title.png")
+
+# Retro Palette (BIOS / Arcade Style)
+COLOR_BG_DIM = (20, 20, 30)         # Dark Blue-Black
+COLOR_FRAME_BORDER = (200, 200, 200) # Light Gray
+COLOR_FRAME_FILL = (0, 0, 0)        # Black (The "Square" color)
+COLOR_TEXT_LABEL = (100, 200, 255)  # Cyan
+COLOR_TEXT_VALUE = (255, 255, 0)    # Yellow (Retro Highlight)
+COLOR_CURSOR = (255, 255, 255)      # White
 
 def ensure_placeholder_logo(path, text="<Git />ar", size=(600, 160), font_size=96):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     if os.path.exists(path):
         return
-    if not pygame.get_init():
-        pygame.init()
-    if not pygame.font.get_init():
-        pygame.font.init()
+    if not pygame.get_init(): pygame.init()
+    if not pygame.font.get_init(): pygame.font.init()
+    
     surf = pygame.Surface(size, pygame.SRCALPHA)
-    surf.fill((0, 0, 0, 0))
-    box_rect = surf.get_rect().inflate(-10, -10)
-    pygame.draw.rect(surf, (30, 30, 30), box_rect, border_radius=12)
-    font = pygame.font.SysFont(None, font_size)
-    txt = font.render(text, True, (230, 230, 230))
-    txt_rect = txt.get_rect(center=surf.get_rect().center)
-    surf.blit(txt, txt_rect)
-    try:
-        pygame.image.save(surf, path)
-    except Exception as e:
-        print(f"Warning: could not save placeholder logo '{path}': {e}", file=sys.stderr)
+    font = pygame.font.SysFont("consolas", font_size, bold=True)
+    if not font: font = pygame.font.SysFont(None, font_size)
+    
+    # Retro drop shadow style
+    shadow = font.render(text, True, (0, 0, 80))
+    main = font.render(text, True, (255, 255, 255))
+    
+    rect = surf.get_rect()
+    surf.blit(shadow, (rect.centerx - main.get_width()//2 + 6, rect.centery - main.get_height()//2 + 6))
+    surf.blit(main,   (rect.centerx - main.get_width()//2,     rect.centery - main.get_height()//2))
+    
+    try: pygame.image.save(surf, path)
+    except: pass
 
 class StartScreen:
-    def __init__(self, screen, bg_image, scale=1.0, offset=(0,0)):
+    def __init__(self, screen, bg_image=None, scale=1.0, offset=(0,0)):
         self.screen = screen
-        self.bg_image = bg_image
         self.scale = max(0.0001, float(scale))
         self.offset = offset
-        # scale fonts but ensure a reasonable min size
-        self.font = pygame.font.SysFont(None, max(12, int(36 * self.scale)))
-        self.title_font = pygame.font.SysFont(None, max(18, int(72 * self.scale)))
         self.clock = pygame.time.Clock()
 
-        ensure_placeholder_logo(LOGO_PATH, text="<Git />ar")
-        try:
-            self.logo_image = pygame.image.load(LOGO_PATH).convert_alpha()
-        except Exception:
-            self.logo_image = None
+        # Handle Background Loading internally if not provided
+        if bg_image is None:
+            try:
+                self.bg_image = pygame.image.load(BACKGROUND_PATH).convert()
+            except:
+                self.bg_image = None
+        else:
+            self.bg_image = bg_image
 
-        # Reduce logo target size by half so it doesn't push UI off-screen
-        self.logo_scale_factor = 0.5
+        # Load standard fonts
+        font_names = pygame.font.get_fonts()
+        retro_font = 'couriernew' if 'couriernew' in font_names else None
+        
+        # Scaling fonts
+        self.font_header = pygame.font.SysFont(retro_font, int(55 * self.scale), bold=True)
+        self.font_label = pygame.font.SysFont(retro_font, int(28 * self.scale), bold=True)
+        self.font_input = pygame.font.SysFont(retro_font, int(38 * self.scale))
+        self.font_btn = pygame.font.SysFont(retro_font, int(42 * self.scale), bold=True)
 
-        # Small vertical shift (in design-space scaled units) to move inputs down under the logo
-        self.v_shift = int(60 * self.scale)
+        ensure_placeholder_logo(LOGO_PATH)
+        try: self.logo_image = pygame.image.load(LOGO_PATH).convert_alpha()
+        except: self.logo_image = None
 
-        # Helper to map "Virtual" 1920x1080 coords to current resolution
-        def s_rect(x, y, w, h):
-            return pygame.Rect(int(x * self.scale + self.offset[0]),
-                               int((y + self.v_shift / self.scale) * self.scale + self.offset[1]),
-                               max(1, int(w * self.scale)),
-                               max(1, int(h * self.scale)))
-
-        # CHANGED: Added default text values here
+        # --- THE IDENTITY FORM ---
         self.inputs = [
-            {"label": "Backing instrument", "text": "Acoustic Guitar", "rect": s_rect(560, 380, 800, 40)},
-            {"label": "Genre",              "text": "Classic Rock",            "rect": s_rect(560, 450, 800, 40)},
-            {"label": "Mood",               "text": "Relaxed",       "rect": s_rect(560, 520, 800, 40)},
+            # CHANGED: "CLASS" -> "WEAPON" to fit the shooting gameplay
+            {"label": "WEAPON (INSTRUMENT)", "text": "Acoustic Guitar", "key": "instrument"},
+            {"label": "ORIGIN (GENRE)",      "text": "Classic Rock",    "key": "genre"},
+            {"label": "SPIRIT (MOOD)",       "text": "Relaxed",         "key": "mood"},
         ]
         self.active_idx = None
-        self.begin_rect = s_rect(860, 600, 200, 50)
 
-    def draw_placeholder_background(self):
-        self.screen.fill(FALLBACK_BG_COLOR)
-        big = self.title_font.render("BACKGROUND", True, (200, 200, 200))
-        center_x = int((SCREEN_WIDTH // 2) * self.scale + self.offset[0])
-        center_y = int((SCREEN_HEIGHT // 3) * self.scale + self.offset[1] + self.v_shift)
-        br = big.get_rect(center=(center_x, center_y))
-        self.screen.blit(big, br)
+    def draw_retro_box(self, rect, border_width=4):
+        """Draws a 'BIOS' style text box."""
+        # 1. Fill with Opaque Black
+        pygame.draw.rect(self.screen, COLOR_FRAME_FILL, rect) 
+        # 2. Draw Borders
+        pygame.draw.rect(self.screen, COLOR_FRAME_BORDER, rect, int(border_width * self.scale)) 
+        # Double border effect
+        inner_rect = rect.inflate(-8*self.scale, -8*self.scale)
+        pygame.draw.rect(self.screen, COLOR_FRAME_BORDER, inner_rect, max(1, int(2 * self.scale)))
 
     def draw(self):
-        if self.bg_image:
-            self.screen.blit(pygame.transform.scale(self.bg_image, (int(SCREEN_WIDTH * self.scale), int(SCREEN_HEIGHT * self.scale))), (self.offset[0], self.offset[1]))
-        else:
-            self.draw_placeholder_background()
+        w, h = self.screen.get_size()
+        cx, cy = w // 2, h // 2
 
+        # 1. Background
+        if self.bg_image:
+            scaled_bg = pygame.transform.scale(self.bg_image, (w, h))
+            self.screen.blit(scaled_bg, (0, 0))
+        else:
+            self.screen.fill(COLOR_BG_DIM)
+
+        # 2. Main Frame (Centered Black Box)
+        box_w = int(950 * self.scale)
+        box_h = int(800 * self.scale)
+        box_rect = pygame.Rect(0, 0, box_w, box_h)
+        vertical_shift = int(20 * self.scale)
+        box_rect.center = (cx, cy - vertical_shift)
+        
+        self.draw_retro_box(box_rect)
+
+        # 3. Logo / Title
+        content_top_y = box_rect.top + int(60 * self.scale)
+        
         if self.logo_image:
-            target_w = int(800 * self.scale * self.logo_scale_factor)
-            logo_w = min(target_w, self.logo_image.get_width())
-            scale_ratio = logo_w / max(1, self.logo_image.get_width())
-            logo_h = int(self.logo_image.get_height() * scale_ratio)
-            logo_surf = pygame.transform.smoothscale(self.logo_image, (logo_w, logo_h))
-            center_x = int((SCREEN_WIDTH // 2) * self.scale + self.offset[0])
-            margin = int(8 * self.scale)
-            logo_rect = logo_surf.get_rect(midbottom=(center_x, self.inputs[0]["rect"].top - margin))
-            self.screen.blit(logo_surf, logo_rect)
+            logo_target_w = int(300 * self.scale) 
+            ratio = logo_target_w / self.logo_image.get_width()
+            logo_h = int(self.logo_image.get_height() * ratio)
+            scaled_logo = pygame.transform.smoothscale(self.logo_image, (logo_target_w, logo_h))
+            logo_rect = scaled_logo.get_rect(midtop=(cx, content_top_y))
+            self.screen.blit(scaled_logo, logo_rect)
+            
+            # Gap after logo
+            current_y = logo_rect.bottom + int(20 * self.scale) 
+        else:
+            title_surf = self.font_header.render("IDENTITY SETUP", True, (255, 255, 255))
+            title_rect = title_surf.get_rect(midtop=(cx, content_top_y))
+            self.screen.blit(title_surf, title_rect)
+            current_y = title_rect.bottom + int(20 * self.scale)
+
+        # 4. Inputs
+        field_spacing = int(110 * self.scale) 
+        input_width = int(650 * self.scale)
+        input_height = int(55 * self.scale)
 
         for i, fld in enumerate(self.inputs):
-            lbl = self.font.render(fld["label"], True, (220, 220, 220))
-            self.screen.blit(lbl, (fld["rect"].x, fld["rect"].y - int(28 * self.scale)))
+            label_surf = self.font_label.render(fld["label"], True, COLOR_TEXT_LABEL)
+            label_rect = label_surf.get_rect(midtop=(cx, current_y))
+            self.screen.blit(label_surf, label_rect)
 
-            color = (255, 255, 255) if i == self.active_idx else (200, 200, 200)
-            pygame.draw.rect(self.screen, (30, 30, 30), fld["rect"])
-            pygame.draw.rect(self.screen, color, fld["rect"], max(1, int(2 * self.scale)))
+            current_y += int(35 * self.scale)
+            
+            input_rect = pygame.Rect(0, 0, input_width, input_height)
+            input_rect.midtop = (cx, current_y)
+            fld["rect"] = input_rect 
+            
+            is_active = (i == self.active_idx)
+            # Input box background
+            bg_col = (20, 20, 20) if not is_active else (0, 0, 0)
+            pygame.draw.rect(self.screen, bg_col, input_rect)
+            pygame.draw.rect(self.screen, COLOR_TEXT_LABEL, input_rect, max(1, int(3*self.scale)))
 
-            text_surf = self.font.render(fld["text"], True, (255, 255, 255))
-            text_pos = (fld["rect"].x + int(8 * self.scale), fld["rect"].y + int(6 * self.scale))
-            self.screen.blit(text_surf, text_pos)
+            txt_surf = self.font_input.render(fld["text"], True, COLOR_TEXT_VALUE)
+            txt_rect = txt_surf.get_rect(center=input_rect.center)
+            self.screen.blit(txt_surf, txt_rect)
 
-            if i == self.active_idx:
-                blink_on = (pygame.time.get_ticks() // 500) % 2 == 0
-                if blink_on:
-                    txt_w = text_surf.get_width()
-                    caret_x = fld["rect"].x + int(8 * self.scale) + txt_w + int(2 * self.scale)
-                    caret_y = fld["rect"].y + int(8 * self.scale)
-                    caret_h = max(4, self.font.get_height() - int(4 * self.scale))
-                    caret_rect = pygame.Rect(caret_x, caret_y, max(1, int(2 * self.scale)), caret_h)
-                    pygame.draw.rect(self.screen, (255, 255, 255), caret_rect)
+            if is_active and (pygame.time.get_ticks() // 500) % 2 == 0:
+                cursor_x = txt_rect.right + int(5 * self.scale)
+                cursor_h = int(30 * self.scale)
+                pygame.draw.rect(self.screen, COLOR_CURSOR, (cursor_x, input_rect.centery - cursor_h//2, int(10*self.scale), cursor_h))
 
-        pygame.draw.rect(self.screen, (50, 150, 50), self.begin_rect)
-        btn_text = self.font.render("Begin Game", True, (255, 255, 255))
-        btn_rect = btn_text.get_rect(center=self.begin_rect.center)
-        self.screen.blit(btn_text, btn_rect)
+            current_y += field_spacing
+
+        # 5. Start Button
+        btn_w = int(250 * self.scale)
+        btn_h = int(65 * self.scale)
+        self.btn_rect = pygame.Rect(0, 0, btn_w, btn_h)
+        
+        # CHANGED: Pushed down by 10px (Offset changed from -50 to -40)
+        button_y_pos = current_y - int(40 * self.scale) 
+        self.btn_rect.midtop = (cx, button_y_pos)
+        
+        mouse_pos = pygame.mouse.get_pos()
+        hover = self.btn_rect.collidepoint(mouse_pos)
+        
+        btn_col = (255, 0, 0) if hover else (180, 0, 0)
+        pygame.draw.rect(self.screen, btn_col, self.btn_rect)
+        pygame.draw.rect(self.screen, (255, 255, 255), self.btn_rect, max(1, int(3*self.scale)))
+        
+        btn_txt = self.font_btn.render("START", True, (255, 255, 255))
+        btn_txt_rect = btn_txt.get_rect(center=self.btn_rect.center)
+        self.screen.blit(btn_txt, btn_txt_rect)
 
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             pos = event.pos
             self.active_idx = None
+            
             for i, fld in enumerate(self.inputs):
                 if fld["rect"].collidepoint(pos):
                     self.active_idx = i
                     return None
-            if self.begin_rect.collidepoint(pos):
+            
+            if self.btn_rect.collidepoint(pos):
                 cfg = self._build_config()
                 self._launch_music(cfg)
                 return cfg
@@ -152,77 +213,53 @@ class StartScreen:
                         cfg = self._build_config()
                         self._launch_music(cfg)
                         return cfg
+                elif event.key == pygame.K_TAB:
+                    self.active_idx = (self.active_idx + 1) % len(self.inputs)
                 else:
-                    ch = event.unicode
-                    if ch.isprintable():
-                        fld["text"] += ch
+                    if event.unicode.isprintable():
+                        fld["text"] += event.unicode
         return None
 
     def _launch_music(self, cfg):
-        """Starts the music generation in a separate daemon thread."""
-        print(f"Starting music background thread: {cfg.instrument}, {cfg.genre}, {cfg.mood}")
-        
+        print(f"Identity Confirmed: {cfg.instrument} | {cfg.genre} | {cfg.mood}")
         def run_music_loop():
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
-                # CHANGED: Now using the values from the cfg object (which come from user input)
                 loop.run_until_complete(start_music_session(
-                    instrument=cfg.instrument,
-                    genre=cfg.genre,
-                    mood=cfg.mood,
-                    bpm=cfg.bpm
+                    instrument=cfg.instrument, genre=cfg.genre, mood=cfg.mood, bpm=cfg.bpm
                 ))
-            except Exception as e:
-                print(f"Music thread error: {e}")
-            finally:
-                loop.close()
-
-        t = threading.Thread(target=run_music_loop, daemon=True)
-        t.start()
+            except Exception as e: print(f"Music Error: {e}")
+            finally: loop.close()
+        threading.Thread(target=run_music_loop, daemon=True).start()
 
     def _build_config(self):
-        class Config:
-            pass
+        class Config: pass
         cfg = Config()
         cfg.bpm = 120
         cfg.scale = "G_MAJOR_E_MINOR"
-        
-        # CHANGED: Use text from inputs, but fallback to defaults if user cleared the box
         cfg.instrument = self.inputs[0]["text"].strip() or "Electric Guitar"
         cfg.genre      = self.inputs[1]["text"].strip() or "Rock"
         cfg.mood       = self.inputs[2]["text"].strip() or "Energetic"
-        
         return cfg
 
     def run(self):
-        while True:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    return None
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                    return None
-                result = self.handle_event(event)
-                if result is not None:
-                    print("Game Started with Config:", result.__dict__)
-                    return result
-
-            self.draw()
-            pygame.display.flip()
-            self.clock.tick(60)
+        pygame.key.set_repeat(400, 50)
+        try:
+            while True:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT: return None
+                    if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE: return None
+                    res = self.handle_event(event)
+                    if res: return res
+                self.draw()
+                pygame.display.flip()
+                self.clock.tick(60)
+        finally:
+            pygame.key.set_repeat(0)
 
 if __name__ == "__main__":
-    pygame.init()
-    pygame.font.init()
-    
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption("<Git />ar")
-
-    bg_image = None
-    scale_factor = SCREEN_WIDTH / 1920.0 
-    
-    start_screen = StartScreen(screen, bg_image, scale=scale_factor)
-    start_screen.run()
-    
+    pygame.init(); pygame.font.init()
+    s = pygame.display.set_mode((1280, 720)) # Test resolution
+    StartScreen(s, None, scale=1280/1920).run()
     pygame.quit()
-    sys.exit()
