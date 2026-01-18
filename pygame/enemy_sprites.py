@@ -1,12 +1,10 @@
 import pygame
 import random
 import os 
+from strings import START_POSITIONS, STRING_COLORS
 import sys
-from gemini.enemies import Enemy
-
-from .strings import START_POSITIONS, STRING_COLORS
-
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'gemini'))
+from enemies import Enemy
 
 # remove hardcoded SCREEN_WIDTH usage; spawn X will be passed in or computed from scale
 

@@ -4,12 +4,10 @@ import random
 import pygame
 from pygame.locals import QUIT, KEYDOWN, K_ESCAPE
 
-from .start_screen import StartScreen, window_size, FALLBACK_BG_COLOR, SCREEN_WIDTH as DESIGN_WIDTH, SCREEN_HEIGHT as DESIGN_HEIGHT
-from .strings import StringSprite, START_POSITIONS
-from .enemy_sprites import EnemySprite
-from .player_sprite import PlayerSprite
-
-# import backend
+from start_screen import StartScreen, window_size, FALLBACK_BG_COLOR, SCREEN_WIDTH as DESIGN_WIDTH, SCREEN_HEIGHT as DESIGN_HEIGHT
+from strings import StringSprite, START_POSITIONS
+from enemy_sprites import EnemySprite
+from player_sprite import PlayerSprite
 
 # Path to your background image
 BACKGROUND_PATH = os.path.join(os.path.dirname(__file__), "imgs", "bg2.png")
@@ -152,14 +150,6 @@ def main(config=None):
 		for enemy in enemies_group:
 			if enemy.rect.right < 0:
 				enemy.kill()
-				
-
-        # Detect note played
-		# detected_pitch = backend.get_pitch()
-		# if detected_pitch:
-		# 	note = detected_pitch[0]  # format: E3, only take the first letter
-		# 	print(note)
-
 
 		pygame.display.flip()
 		clock.tick(TARGET_FPS)

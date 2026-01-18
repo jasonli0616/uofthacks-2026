@@ -1,7 +1,7 @@
 import pygame
 import random
 import os
-from .start_screen import SCREEN_WIDTH as DESIGN_WIDTH, SCREEN_HEIGHT as DESIGN_HEIGHT
+from start_screen import SCREEN_WIDTH as DESIGN_WIDTH, SCREEN_HEIGHT as DESIGN_HEIGHT
 
 # Screen constants
 SCREEN_WIDTH = 1920
