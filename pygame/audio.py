@@ -17,7 +17,7 @@ pitch_detector = aubio.pitch(
 )
 
 pitch_detector.set_unit("Hz")
-pitch_detector.set_tolerance(0.3)
+pitch_detector.set_tolerance(0.5)
 pitch_detector.set_silence(-40)
 
 # New: store latest pitch/note and manage input stream
@@ -38,8 +38,7 @@ def hz_to_note(freq):
 def audio_callback(indata, frames, time, status):
     global latest_pitch
     if status:
-        # keep minimal logging
-        # print(status)
+        # print(status) # Uncomment to debug buffer underflows/overflows
         pass
 
     # Convert input buffer to a 1-D float32 numpy array
@@ -55,22 +54,49 @@ def audio_callback(indata, frames, time, status):
     else:
         latest_pitch = None
 
-# New helpers
 def start_audio_stream():
     """
-    Start the audio input stream in the background. Safe to call multiple times.
+    Finds 'Aggregate Device', prints it, and starts the audio input stream.
     """
     global _stream
     if _stream is not None:
         return
-    _stream = sd.InputStream(
-        samplerate=SAMPLE_RATE,
-        blocksize=HOP_SIZE,
-        dtype='float32',
-        channels=1,
-        callback=audio_callback,
-    )
-    _stream.start()
+
+    # --- DEVICE SELECTION LOGIC ---
+    target_device_name = "Aggregate Device"
+    selected_device_index = None
+    selected_device_name = "Default"
+
+    # List all devices and look for the target
+    available_devices = sd.query_devices()
+    
+    for i, device in enumerate(available_devices):
+        # We check if the name matches and if it actually has input channels
+        if target_device_name in device['name'] and device['max_input_channels'] > 0:
+            selected_device_index = i
+            selected_device_name = device['name']
+            break
+    
+    print(f"--------------------------------------------------")
+    print(f"AUDIO INIT: Using Device: '{selected_device_name}'")
+    print(f"AUDIO INIT: Device Index: {selected_device_index}")
+    print(f"--------------------------------------------------")
+    
+    # ------------------------------
+
+    try:
+        _stream = sd.InputStream(
+            device=selected_device_index, # Pass the specific device index here
+            samplerate=SAMPLE_RATE,
+            blocksize=HOP_SIZE,
+            dtype='float32',
+            channels=1,
+            callback=audio_callback,
+        )
+        _stream.start()
+    except Exception as e:
+        print(f"ERROR: Could not open audio device '{selected_device_name}'.")
+        print(f"Exception: {e}")
 
 def stop_audio_stream():
     """

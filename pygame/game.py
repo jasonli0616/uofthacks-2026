@@ -5,17 +5,14 @@ import threading
 import time
 from pygame.locals import QUIT, KEYDOWN, K_ESCAPE, MOUSEBUTTONDOWN
 
+# --- IMPORT NEW AUDIO MODULE ---
+import audio
+
 from start_screen import StartScreen, SCREEN_WIDTH as DESIGN_WIDTH, SCREEN_HEIGHT as DESIGN_HEIGHT
 from strings import StringSprite, START_POSITIONS
 from enemy_sprites import EnemySprite
 from player_sprite import PlayerSprite
 from gemini.enemies import generate_musical_track  
-import audio
-
-
-audio.start_audio_stream()
-# Import the new Polling Listener
-import guitar_listener 
 
 # --- CONFIGURATION ---
 BACKGROUND_PATH = os.path.join(os.path.dirname(__file__), "imgs", "bg2.png")
@@ -30,7 +27,6 @@ STRING_OFFSETS = {'E': 4, 'A': 9, 'D': 14, 'G': 19, 'B': 23, 'e': 28}
 def get_enemy_note_name(enemy):
     """
     Calculates the note name (e.g., 'C') based on string+fret.
-    Does NOT include octave for gameplay simplicity, but you can add it if needed.
     """
     try:
         base_val = STRING_OFFSETS.get(enemy.string, 0)
@@ -47,7 +43,8 @@ def load_background(path):
 
 def restart_game():
     print("Restarting...")
-    guitar_listener.stop_audio_stream()
+    # Stop the audio stream before restarting so we don't leave resources hanging
+    audio.stop_audio_stream()
     pygame.quit()
     os.execl(sys.executable, sys.executable, *sys.argv)
 
@@ -94,7 +91,6 @@ def main():
     font_loading = pygame.font.SysFont(None, 60)
     loading_start = pygame.time.get_ticks()
     while True:
-        
         if pygame.time.get_ticks() - loading_start > 4000 and generation_result["notes"]: break
         for e in pygame.event.get():
             if e.type == QUIT: pygame.quit(); sys.exit()
@@ -117,8 +113,9 @@ def main():
     player_group = pygame.sprite.Group()
     player_group.add(player)
 
-    # --- START AUDIO ---
-    guitar_listener.start_audio_stream()
+    # --- START AUDIO STREAM ---
+    # This will print the "Aggregate Device" info to console
+    audio.start_audio_stream()
 
     max_health = 5
     current_health = max_health
@@ -129,7 +126,6 @@ def main():
     last_damage_time = 0
     damage_cooldown_ms = 1000 
     
-    # Cooldown for shooting (prevents one pluck killing 5 enemies instantly)
     last_shot_time = 0
     shot_cooldown = 0.2
 
@@ -138,8 +134,7 @@ def main():
 
     running = True
     while running:
-        current_time = pygame.time.get_ticks() / 1000.0 # seconds
-
+        current_time = pygame.time.get_ticks() / 1000.0 
 
         for event in pygame.event.get():
             if event.type == QUIT: running = False
@@ -149,34 +144,37 @@ def main():
                 if pygame.Rect(SCREEN_W//2 - 150, SCREEN_H//2 + 50, 300, 80).collidepoint(mx, my):
                     restart_game()
 
-        # --- POLLING AUDIO LOGIC ---
+        # --- AUDIO POLLING LOGIC ---
         if not game_over:
+            # 1. Get raw pitch from audio module (e.g. "A4" or "C#3")
+            raw_pitch = audio.get_pitch()
             
-            # 1. Get current pitch (e.g. "A2")
-            detected_pitch = audio.get_pitch()  # returns note string or None
-           
-            
-            if detected_pitch and (current_time - last_shot_time > shot_cooldown):
-                # Strip the octave number for game comparison (e.g. "A2" -> "A")
-                # If you want strict octave matching, remove this line.
-                note_name = detected_pitch[:-1] 
+            # 2. Process pitch if it exists
+            detected_note_name = None
+            if raw_pitch and raw_pitch != "--":
+                # Strip the octave number (digits) to match game logic (e.g. "A4" -> "A")
+                detected_note_name = ''.join([c for c in raw_pitch if not c.isdigit()])
 
-                # 2. Find Targets
+            if detected_note_name and (current_time - last_shot_time > shot_cooldown):
+                # 3. Find Targets (Only target actual enemies, not debris)
                 targets = [
                     e for e in enemies_group 
-                    if e.rect.centerx <= barrier_screen_x and e.rect.right > 0
+                    if isinstance(e, EnemySprite) 
+                    and not e.is_hit
+                    and e.rect.centerx <= barrier_screen_x 
+                    and e.rect.right > 0
                 ]
                 
-                # 3. Match Note
+                # 4. Match Note
                 hit_enemy = None
                 for e in targets:
-                    if get_enemy_note_name(e) == note_name:
+                    if get_enemy_note_name(e) == detected_note_name:
                         hit_enemy = e
                         break # Only shoot one at a time
                 
                 if hit_enemy:
-                    print(f"Shot {note_name} (from {detected_pitch})")
-                    beam = player.shoot_particle_beam(note_name, target_enemy=hit_enemy)
+                    print(f"Shot {detected_note_name} (Raw: {raw_pitch})")
+                    beam = player.shoot_particle_beam(detected_note_name, target_enemy=hit_enemy)
                     if beam: beam_group.add(beam)
                     last_shot_time = current_time
 
@@ -192,11 +190,22 @@ def main():
             strings_group.update(); enemies_group.update()
             player_group.update(); beam_group.update()
 
-            # DAMAGE CHECK
+            # --- DAMAGE CHECK (FIXED) ---
             current_ms = pygame.time.get_ticks()
-            for enemy in list(enemies_group):
-                if enemy.rect.right < play_area_x:
-                    enemy.kill() 
+            for entity in list(enemies_group):
+                
+                # FIX 1: Ignore "Debris" particles
+                # Debris is in enemies_group but is not an EnemySprite
+                if not isinstance(entity, EnemySprite):
+                    continue
+
+                # FIX 2: Ignore enemies that are already "Hit" (dying animation)
+                if entity.is_hit:
+                    continue
+
+                # Normal Damage Logic
+                if entity.rect.right < play_area_x:
+                    entity.kill() 
                     if current_ms - last_damage_time > damage_cooldown_ms:
                         current_health -= 1
                         last_damage_time = current_ms
@@ -229,7 +238,8 @@ def main():
         pygame.display.flip()
         clock.tick(TARGET_FPS)
 
-    guitar_listener.stop_audio_stream()
+    # Cleanup Audio
+    audio.stop_audio_stream()
     pygame.quit()
 
 if __name__ == "__main__":
